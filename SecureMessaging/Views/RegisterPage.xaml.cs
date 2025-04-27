@@ -9,4 +9,12 @@ public partial class RegisterPage : ContentPage
         InitializeComponent();
         BindingContext = viewModel;
     }
+
+    private void OnPasswordFocused(object sender, FocusEventArgs e)
+    {
+        if (BindingContext is RegisterViewModel vm)
+        {
+            vm.ShowPasswordRequirements = true;
+        }
+    }
 }

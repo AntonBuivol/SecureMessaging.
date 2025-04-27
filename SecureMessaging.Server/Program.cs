@@ -1,10 +1,23 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using SecureMessaging.Server.Hubs;
 using SecureMessaging.Server.Services;
 using Supabase;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Добавьте CORS перед другими сервисами
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("CorsPolicy", builder => builder
+        .WithOrigins(
+            "https://8b89-94-246-253-157.ngrok-free.app"
+        )
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials()
+        .SetIsOriginAllowedToAllowWildcardSubdomains());
+});
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -55,11 +68,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Порядок middleware критически важен!
 app.UseHttpsRedirection();
+app.UseCors("CorsPolicy"); // После UseHttpsRedirection, перед UseAuthentication
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapControllers();
-app.MapHub<ChatHub>("/chatHub");
+
+// Настройка SignalR с явным указанием транспорта
+app.MapHub<ChatHub>("/chatHub", options =>
+{
+    options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets;
+});
 
 app.Run();

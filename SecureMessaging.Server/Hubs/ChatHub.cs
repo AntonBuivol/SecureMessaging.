@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.SignalR;
 using SecureMessaging.Server.Models;
 using SecureMessaging.Server.Services;
+using System.Security.Claims;
 
 namespace SecureMessaging.Server.Hubs;
 
@@ -63,7 +64,14 @@ public class ChatHub : Hub
 
     private Guid GetUserId()
     {
-        var userId = Context.User?.FindFirst("id")?.Value;
-        return Guid.Parse(userId);
+        var userIdClaim = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                        ?? Context.User?.FindFirst("id")?.Value;
+
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            throw new HubException("Invalid user ID");
+        }
+
+        return userId;
     }
 }

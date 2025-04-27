@@ -31,15 +31,23 @@ public partial class LoginViewModel : ObservableObject
             return;
         }
 
-        var success = await _authService.Login(Username, Password);
+        try
+        {
+            var (success, error) = await _authService.Login(Username, Password);
 
-        if (success)
-        {
-            await Shell.Current.GoToAsync("//MainPage");
+            if (success)
+            {
+                await Shell.Current.GoToAsync("//MainPage");
+            }
+            else
+            {
+                ErrorMessage = error ?? "Invalid username or password";
+            }
         }
-        else
+        catch (Exception ex)
         {
-            ErrorMessage = "Invalid username or password";
+            ErrorMessage = "Login failed. Please try again.";
+            Console.WriteLine($"Login error: {ex.Message}");
         }
     }
 

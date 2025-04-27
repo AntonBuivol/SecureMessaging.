@@ -5,8 +5,7 @@ using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using SecureMessaging.Models;
 using Supabase;
-using Supabase.Gotrue;
-using Supabase.Gotrue.Interfaces;
+using Supabase.Postgrest;
 
 namespace SecureMessaging.Services;
 
@@ -22,6 +21,13 @@ public class AuthService
         _jwtSecret = jwtSecret;
     }
 
+    private string HashPassword(string password)
+    {
+        using var sha256 = SHA256.Create();
+        var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+        return Convert.ToBase64String(hashedBytes);
+    }
+
     public string GenerateJwtToken(Guid userId)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
@@ -30,8 +36,8 @@ public class AuthService
         {
             Subject = new ClaimsIdentity(new[]
             {
-                new Claim(ClaimTypes.NameIdentifier, userId.ToString())
-            }),
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString("D")) // Используем "D" формат для Guid
+        }),
             Expires = DateTime.UtcNow.AddDays(7),
             SigningCredentials = new SigningCredentials(
                 new SymmetricSecurityKey(key),
@@ -42,79 +48,70 @@ public class AuthService
         return tokenHandler.WriteToken(token);
     }
 
-    public async Task<bool> Register(string username, string password, string displayName)
+    public async Task<(bool Success, string ErrorMessage)> Register(string username, string password, string displayName)
     {
         try
         {
-            var deviceName = DeviceInfo.Name;
-            var deviceInfo = $"{DeviceInfo.Platform} {DeviceInfo.Version}";
+            // Проверка существующего пользователя
+            var existingUser = await _supabase.From<User>()
+                .Where(x => x.Username == username)
+                .Single();
 
-            var options = new SignUpOptions
+            if (existingUser != null)
             {
-                Data = new Dictionary<string, object>
-                {
-                    { "display_name", displayName },
-                    { "device_name", deviceName },
-                    { "device_info", deviceInfo }
-                }
-            };
-
-            var session = await _supabase.Auth.SignUp(username, password, options);
-
-            if (session?.User?.Id == null)
-            {
-                return false;
+                return (false, "Username is already taken");
             }
 
-            // Генерируем JWT токен
-            var jwtToken = GenerateJwtToken(Guid.Parse(session.User.Id));
+            // Создание нового пользователя с явным Guid
+            var newUser = new User
+            {
+                Id = Guid.NewGuid(), // Явное создание Guid
+                Username = username,
+                PasswordHash = HashPassword(password),
+                DisplayName = displayName,
+                CreatedAt = DateTime.UtcNow,
+                IsRestricted = false
+            };
+
+            var response = await _supabase.From<User>().Insert(newUser);
+            var createdUser = response.Models.First();
+
+            // Генерация JWT токена
+            var jwtToken = GenerateJwtToken(createdUser.Id);
             await SecureStorage.SetAsync(AuthTokenKey, jwtToken);
 
-            return true;
+            return (true, string.Empty);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Registration error: {ex.Message}");
-            return false;
+            return (false, "Registration failed. Please try again.");
         }
     }
 
-    public async Task<bool> Login(string username, string password)
+    public async Task<(bool Success, string ErrorMessage)> Login(string username, string password)
     {
         try
         {
-            var deviceName = DeviceInfo.Name;
-            var deviceInfo = $"{DeviceInfo.Platform} {DeviceInfo.Version}";
+            var user = await _supabase.From<User>()
+                .Where(x => x.Username == username)
+                .Single();
 
-            var session = await _supabase.Auth.SignIn(username, password);
-
-            if (session?.User?.Id == null)
+            if (user == null || user.PasswordHash != HashPassword(password))
             {
-                return false;
+                return (false, "Invalid username or password");
             }
 
-            // Генерируем JWT токен
-            var jwtToken = GenerateJwtToken(Guid.Parse(session.User.Id));
+            // Генерация JWT токена
+            var jwtToken = GenerateJwtToken(user.Id);
             await SecureStorage.SetAsync(AuthTokenKey, jwtToken);
 
-            // Обновляем метаданные устройства
-            var attributes = new UserAttributes
-            {
-                Data = new Dictionary<string, object>
-                {
-                    { "device_name", deviceName },
-                    { "device_info", deviceInfo },
-                    { "last_login", DateTime.UtcNow }
-                }
-            };
-            await _supabase.Auth.Update(attributes);
-
-            return true;
+            return (true, string.Empty);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Login error: {ex.Message}");
-            return false;
+            return (false, "Login failed. Please try again.");
         }
     }
 
@@ -140,22 +137,33 @@ public class AuthService
 
     public async Task Logout()
     {
-        await _supabase.Auth.SignOut();
         SecureStorage.Remove(AuthTokenKey);
     }
 
     public Guid GetCurrentUserId()
     {
-        var token = SecureStorage.GetAsync(AuthTokenKey).Result;
-        if (string.IsNullOrEmpty(token))
+        try
+        {
+            var token = SecureStorage.GetAsync(AuthTokenKey).Result;
+            if (string.IsNullOrEmpty(token))
+            {
+                return Guid.Empty;
+            }
+
+            var handler = new JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadJwtToken(token);
+            var userIdClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Guid.Empty;
+            }
+
+            return userId;
+        }
+        catch
         {
             return Guid.Empty;
         }
-
-        var handler = new JwtSecurityTokenHandler();
-        var jwtToken = handler.ReadJwtToken(token);
-        var userId = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
-
-        return Guid.Parse(userId ?? string.Empty);
     }
 }

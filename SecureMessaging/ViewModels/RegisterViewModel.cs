@@ -23,6 +23,12 @@ public partial class RegisterViewModel : ObservableObject
     [ObservableProperty]
     private string _errorMessage;
 
+    [ObservableProperty]
+    private bool _showPasswordRequirements;
+
+    [ObservableProperty]
+    private string _passwordRequirements = "• At least 6 characters";
+
     public RegisterViewModel(AuthService authService)
     {
         _authService = authService;
@@ -37,18 +43,19 @@ public partial class RegisterViewModel : ObservableObject
             return;
         }
 
+        if (Password.Length < 6)
+        {
+            ErrorMessage = "Password must be at least 6 characters";
+            return;
+        }
+
         if (Password != ConfirmPassword)
         {
             ErrorMessage = "Passwords do not match";
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(DisplayName))
-        {
-            DisplayName = Username;
-        }
-
-        var success = await _authService.Register(Username, Password, DisplayName);
+        var (success, error) = await _authService.Register(Username, Password, DisplayName ?? Username);
 
         if (success)
         {
@@ -56,7 +63,7 @@ public partial class RegisterViewModel : ObservableObject
         }
         else
         {
-            ErrorMessage = "Registration failed. Username may already be taken.";
+            ErrorMessage = error;
         }
     }
 

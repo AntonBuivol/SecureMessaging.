@@ -14,9 +14,23 @@ public class ChatService
 
     public async Task<List<Chat>> GetUserChats(Guid userId)
     {
+        // Get user's chat IDs first
+        var userChats = await _supabase
+            .From<UserChat>()
+            .Select(x => new object[] { x.ChatId })
+            .Where(x => x.UserId == userId)
+            .Get();
+
+        if (userChats.Models.Count == 0)
+            return new List<Chat>();
+
+        // Convert to array of Guid for the IN clause
+        var chatIds = userChats.Models.Select(x => x.ChatId).ToArray();
+
+        // Get chats using the IN operator with the array
         var response = await _supabase
             .From<Chat>()
-            .Filter("user_id", Supabase.Postgrest.Constants.Operator.Equals, userId)
+            .Filter("id", Supabase.Postgrest.Constants.Operator.In, chatIds)
             .Order("last_message_at", Supabase.Postgrest.Constants.Ordering.Descending)
             .Get();
 
