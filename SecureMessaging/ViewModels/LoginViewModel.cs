@@ -1,0 +1,51 @@
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using SecureMessaging.Services;
+
+namespace SecureMessaging.ViewModels;
+
+public partial class LoginViewModel : ObservableObject
+{
+    private readonly AuthService _authService;
+
+    [ObservableProperty]
+    private string _username;
+
+    [ObservableProperty]
+    private string _password;
+
+    [ObservableProperty]
+    private string _errorMessage;
+
+    public LoginViewModel(AuthService authService)
+    {
+        _authService = authService;
+    }
+
+    [RelayCommand]
+    private async Task Login()
+    {
+        if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password))
+        {
+            ErrorMessage = "Username and password are required";
+            return;
+        }
+
+        var success = await _authService.Login(Username, Password);
+
+        if (success)
+        {
+            await Shell.Current.GoToAsync("//MainPage");
+        }
+        else
+        {
+            ErrorMessage = "Invalid username or password";
+        }
+    }
+
+    [RelayCommand]
+    private async Task NavigateToRegister()
+    {
+        await Shell.Current.GoToAsync("//RegisterPage");
+    }
+}

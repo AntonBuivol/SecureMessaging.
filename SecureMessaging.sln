@@ -1,0 +1,29 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35514.174 d17.12
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureMessaging", "SecureMessaging\SecureMessaging.csproj", "{C3D9E622-F3E0-4407-BB82-EE66A47F2D60}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureMessaging.Server", "SecureMessaging.Server\SecureMessaging.Server.csproj", "{FC805716-11C8-484D-8637-D74E948833FB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C3D9E622-F3E0-4407-BB82-EE66A47F2D60}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3D9E622-F3E0-4407-BB82-EE66A47F2D60}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3D9E622-F3E0-4407-BB82-EE66A47F2D60}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{C3D9E622-F3E0-4407-BB82-EE66A47F2D60}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3D9E622-F3E0-4407-BB82-EE66A47F2D60}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FC805716-11C8-484D-8637-D74E948833FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC805716-11C8-484D-8637-D74E948833FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC805716-11C8-484D-8637-D74E948833FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC805716-11C8-484D-8637-D74E948833FB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

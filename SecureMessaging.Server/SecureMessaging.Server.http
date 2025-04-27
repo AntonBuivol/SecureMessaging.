@@ -1,0 +1,6 @@
+@SecureMessaging.Server_HostAddress = http://localhost:5225
+
+GET {{SecureMessaging.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

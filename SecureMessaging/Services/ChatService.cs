@@ -1,0 +1,84 @@
+﻿using SecureMessaging.Models;
+using Supabase;
+
+namespace SecureMessaging.Services;
+
+public class ChatService
+{
+    private readonly Supabase.Client _supabase;
+
+    public ChatService(Supabase.Client supabase)
+    {
+        _supabase = supabase;
+    }
+
+    public async Task<List<Chat>> GetUserChats(Guid userId)
+    {
+        var response = await _supabase
+            .From<Chat>()
+            .Filter("user_id", Supabase.Postgrest.Constants.Operator.Equals, userId)
+            .Order("last_message_at", Supabase.Postgrest.Constants.Ordering.Descending)
+            .Get();
+
+        return response.Models;
+    }
+
+    public async Task<List<Message>> GetChatMessages(Guid chatId, Guid userId)
+    {
+        var response = await _supabase
+            .From<Message>()
+            .Filter("chat_id", Supabase.Postgrest.Constants.Operator.Equals, chatId)
+            .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
+            .Get();
+
+        var messages = response.Models;
+
+        // Set IsCurrentUser flag
+        foreach (var message in messages)
+        {
+            message.IsCurrentUser = message.SenderId == userId;
+        }
+
+        return messages;
+    }
+
+    public async Task<List<User>> GetChatParticipants(Guid chatId)
+    {
+        var response = await _supabase
+            .From<UserChat>()
+            .Filter("chat_id", Supabase.Postgrest.Constants.Operator.Equals, chatId)
+            .Get();
+
+        var userIds = response.Models.Select(x => x.UserId).ToList();
+
+        if (userIds.Count == 0)
+        {
+            return new List<User>();
+        }
+
+        var usersResponse = await _supabase
+            .From<User>()
+            .Filter("id", Supabase.Postgrest.Constants.Operator.In, userIds)
+            .Get();
+
+        return usersResponse.Models;
+    }
+
+    public async Task<Chat> GetChat(Guid chatId)
+    {
+        return await _supabase
+            .From<Chat>()
+            .Filter("id", Supabase.Postgrest.Constants.Operator.Equals, chatId)
+            .Single();
+    }
+
+    public async Task StartPrivateChat(Guid currentUserId, Guid otherUserId)
+    {
+        await _supabase
+            .Rpc("start_private_chat", new Dictionary<string, object>
+            {
+                { "user1_id", currentUserId },
+                { "user2_id", otherUserId }
+            });
+    }
+}

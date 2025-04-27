@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SecureMessaging.Views.LoginPage"
+             Title="Login">
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="20" Padding="30">
+
+            <Image Source="logo.png"
+                   HeightRequest="100"
+                   HorizontalOptions="Center"/>
+
+            <Label Text="Welcome to SecureMessaging"
+                   FontSize="20"
+                   HorizontalOptions="Center"/>
+
+            <Entry Placeholder="Username"
+                   Text="{Binding Username}"/>
+
+            <Entry Placeholder="Password"
+                   Text="{Binding Password}"
+                   IsPassword="True"/>
+
+            <Label Text="{Binding ErrorMessage}"
+                   TextColor="Red"
+                   HorizontalOptions="Center"/>
+
+            <Button Text="Login"
+                    Command="{Binding LoginCommand}"
+                    HorizontalOptions="Fill"/>
+
+            <Button Text="Don't have an account? Register"
+                    Command="{Binding NavigateToRegisterCommand}"
+                    HorizontalOptions="Center"
+                    TextColor="Blue"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

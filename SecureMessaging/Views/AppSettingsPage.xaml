@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             xmlns:viewmodels="clr-namespace:SecureMessaging.ViewModels"
+             x:Class="SecureMessaging.Views.AppSettingsPage"
+             Title="App Settings">
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="20" Padding="30">
+
+            <Label Text="Devices"
+                   FontAttributes="Bold"/>
+
+            <CollectionView ItemsSource="{Binding Devices}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Label Text="{Binding DeviceName}"
+                                   FontSize="16"/>
+
+                            <HorizontalStackLayout Grid.Column="1" Spacing="10">
+                                <Button Text="Primary"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type viewmodels:AppSettingsViewModel}}, Path=SetPrimaryDeviceCommand}"
+                                        CommandParameter="{Binding .}"
+                                        IsVisible="{Binding IsPrimary, Converter={StaticResource InverseBooleanConverter}}"/>
+
+                                <Button Text="Remove"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type viewmodels:AppSettingsViewModel}}, Path=RemoveDeviceCommand}"
+                                        CommandParameter="{Binding .}"
+                                        IsVisible="{Binding IsCurrent, Converter={StaticResource InverseBooleanConverter}}"/>
+                            </HorizontalStackLayout>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Label Text="Security"
+       FontAttributes="Bold"/>
+
+            <Switch IsToggled="{Binding IsRestricted}"
+        HorizontalOptions="Start">
+                <Switch.Behaviors>
+                    <toolkit:EventToCommandBehavior 
+            EventName="Toggled"
+            Command="{Binding ToggleRestrictionsCommand}"/>
+                </Switch.Behaviors>
+            </Switch>
+            <Label Text="Enable restrictions for new devices"/>
+
+            <Label Text="Appearance"
+       FontAttributes="Bold"/>
+
+            <Switch IsToggled="{Binding IsDarkTheme}"
+        HorizontalOptions="Start">
+                <Switch.Behaviors>
+                    <toolkit:EventToCommandBehavior 
+            EventName="Toggled"
+            Command="{Binding ToggleThemeCommand}"/>
+                </Switch.Behaviors>
+            </Switch>
+            <Label Text="Dark theme"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SecureMessaging.Views.MainPage"
+             Title="Chats">
+
+    <RefreshView IsRefreshing="{Binding IsRefreshing}"
+                 Command="{Binding LoadChatsCommand}">
+        <Grid>
+
+            <CollectionView ItemsSource="{Binding Chats}"
+                            SelectionMode="Single"
+                            SelectionChangedCommand="{Binding NavigateToChatCommand}"
+                            SelectionChangedCommandParameter="{Binding SelectedItem, Source={RelativeSource Self}}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="10">
+                            <Label Text="{Binding DisplayName}"
+                                   FontSize="16"/>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <SearchBar Text="{Binding SearchQuery}"
+                       SearchCommand="{Binding SearchUsersCommand}"
+                       Placeholder="Search users..."
+                       IsVisible="{Binding SearchQuery, Converter={StaticResource StringToVisibilityConverter}}"
+                       Grid.Row="0"/>
+
+            <CollectionView ItemsSource="{Binding SearchResults}"
+                            IsVisible="{Binding SearchQuery, Converter={StaticResource StringToVisibilityConverter}}"
+                            SelectionMode="Single"
+                            SelectionChangedCommand="{Binding StartChatCommand}"
+                            SelectionChangedCommandParameter="{Binding SelectedItem, Source={RelativeSource Self}}"
+                            Grid.Row="1">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="10">
+                            <Label Text="{Binding DisplayName}"
+                                   FontSize="16"/>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+        </Grid>
+    </RefreshView>
+</ContentPage>
