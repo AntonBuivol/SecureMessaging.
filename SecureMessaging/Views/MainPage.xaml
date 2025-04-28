@@ -6,37 +6,47 @@
 
     <RefreshView IsRefreshing="{Binding IsRefreshing}"
                  Command="{Binding LoadChatsCommand}">
-        <Grid>
+        <Grid RowDefinitions="Auto,Auto,*">
+            <!-- Изменили порядок строк -->
 
-            <CollectionView ItemsSource="{Binding Chats}"
-                            SelectionMode="Single"
-                            SelectionChangedCommand="{Binding NavigateToChatCommand}"
-                            SelectionChangedCommandParameter="{Binding SelectedItem, Source={RelativeSource Self}}">
+            <!-- Search Bar - теперь в первой строке -->
+            <SearchBar Grid.Row="0"
+                      Text="{Binding SearchQuery}"
+                      SearchCommand="{Binding SearchUsersCommand}"
+                      Placeholder="Search users..."
+                      Margin="10"/>
+
+            <!-- Search Results - теперь во второй строке -->
+            <Frame Grid.Row="1" 
+                   IsVisible="{Binding HasSearchResults}"
+                   Padding="0"
+                   Margin="10,0"
+                   CornerRadius="10"
+                   HasShadow="True">
+                <CollectionView ItemsSource="{Binding SearchResults}"
+                              SelectionMode="Single"
+                              SelectionChangedCommand="{Binding StartChatCommand}"
+                              SelectionChangedCommandParameter="{Binding SelectedItem, Source={RelativeSource Self}}">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Padding="15,10">
+                                <Label Text="{Binding DisplayName}"
+                                       FontSize="16"/>
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Frame>
+
+            <!-- Chats List - теперь в третьей строке -->
+            <CollectionView Grid.Row="2"
+                          ItemsSource="{Binding Chats}"
+                          SelectionMode="Single"
+                          SelectionChangedCommand="{Binding NavigateToChatCommand}"
+                          SelectionChangedCommandParameter="{Binding SelectedItem, Source={RelativeSource Self}}">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Grid Padding="10">
-                            <Label Text="{Binding DisplayName}"
-                                   FontSize="16"/>
-                        </Grid>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
-
-            <SearchBar Text="{Binding SearchQuery}"
-                       SearchCommand="{Binding SearchUsersCommand}"
-                       Placeholder="Search users..."
-                       IsVisible="{Binding SearchQuery, Converter={StaticResource StringToVisibilityConverter}}"
-                       Grid.Row="0"/>
-
-            <CollectionView ItemsSource="{Binding SearchResults}"
-                            IsVisible="{Binding SearchQuery, Converter={StaticResource StringToVisibilityConverter}}"
-                            SelectionMode="Single"
-                            SelectionChangedCommand="{Binding StartChatCommand}"
-                            SelectionChangedCommandParameter="{Binding SelectedItem, Source={RelativeSource Self}}"
-                            Grid.Row="1">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Grid Padding="10">
+                        <Grid Padding="15,10">
                             <Label Text="{Binding DisplayName}"
                                    FontSize="16"/>
                         </Grid>

@@ -38,6 +38,11 @@ public class UserService
 
     public async Task<List<User>> SearchUsers(string query)
     {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return new List<User>();
+        }
+
         var response = await _supabase
             .From<User>()
             .Where(x => x.Username.Contains(query) || x.DisplayName.Contains(query))

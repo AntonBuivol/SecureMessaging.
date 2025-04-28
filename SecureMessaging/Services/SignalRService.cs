@@ -78,11 +78,9 @@ public class SignalRService
         }
     }
 
+    // В SignalRService.cs
     public async Task StartPrivateChat(Guid currentUserId, Guid otherUserId)
     {
-        if (_hubConnection?.State == HubConnectionState.Connected)
-        {
-            await _hubConnection.InvokeAsync("StartPrivateChat", currentUserId, otherUserId);
-        }
+        await _hubConnection.InvokeAsync("StartPrivateChat", otherUserId); // Передаём только otherUserId
     }
 }

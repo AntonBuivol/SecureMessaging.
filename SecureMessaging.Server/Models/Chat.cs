@@ -20,7 +20,4 @@ public class Chat : BaseModel
 
     [Column("last_message_at")]
     public DateTime? LastMessageAt { get; set; }
-
-    // Клиентское свойство (не из БД)
-    public string DisplayName { get; set; }
 }

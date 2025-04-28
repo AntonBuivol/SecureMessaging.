@@ -23,6 +23,9 @@ public partial class MainViewModel : ObservableObject
     private string _searchQuery;
 
     [ObservableProperty]
+    private bool _hasSearchResults;
+
+    [ObservableProperty]
     private ObservableCollection<User> _searchResults;
 
     public MainViewModel(
@@ -65,6 +68,7 @@ public partial class MainViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(SearchQuery))
         {
             SearchResults.Clear();
+            HasSearchResults = false;
             return;
         }
 
@@ -75,6 +79,8 @@ public partial class MainViewModel : ObservableObject
         {
             SearchResults.Add(user);
         }
+
+        HasSearchResults = SearchResults.Count > 0;
     }
 
     [RelayCommand]

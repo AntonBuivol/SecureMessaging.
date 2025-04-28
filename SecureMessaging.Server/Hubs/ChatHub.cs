@@ -55,12 +55,47 @@ public class ChatHub : Hub
     public async Task StartPrivateChat(Guid otherUserId)
     {
         var userId = GetUserId();
-        var chat = await _chatService.CreatePrivateChat(userId, otherUserId);
 
-        // Notify both users about the new chat
-        await Clients.Group(userId.ToString()).SendAsync("ChatStarted", chat);
-        await Clients.Group(otherUserId.ToString()).SendAsync("ChatStarted", chat);
+        try
+        {
+            _logger.LogInformation($"Creating private chat between {userId} and {otherUserId}");
+
+            var chat = await _chatService.CreatePrivateChat(userId, otherUserId);
+
+            _logger.LogInformation($"Chat created: {chat.Id}");
+
+            // Получаем информацию о собеседнике для DisplayName
+            var otherUser = await _userService.GetUserById(otherUserId);
+            var currentUser = await _userService.GetUserById(userId);
+
+            // Добавляем DisplayName для клиента
+            var chatForClient = new
+            {
+                chat.Id,
+                chat.IsGroup,
+                chat.CreatedAt,
+                chat.LastMessageAt,
+                DisplayName = otherUser?.DisplayName ?? otherUser?.Username ?? "Unknown"
+            };
+
+            await Clients.Caller.SendAsync("ChatStarted", chatForClient);
+            await Clients.User(otherUserId.ToString()).SendAsync("ChatStarted", new
+            {
+                chat.Id,
+                chat.IsGroup,
+                chat.CreatedAt,
+                chat.LastMessageAt,
+                DisplayName = currentUser?.DisplayName ?? currentUser?.Username ?? "Unknown"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating private chat");
+            throw new HubException("Failed to create private chat");
+        }
     }
+
+
 
     private Guid GetUserId()
     {

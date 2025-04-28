@@ -24,8 +24,10 @@ public class ChatService
         // Create new chat
         var newChat = new Chat
         {
+            Id = Guid.NewGuid(), // Явно задаем ID
             IsGroup = false,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            LastMessageAt = null
         };
 
         var chatResponse = await _supabase
@@ -45,6 +47,7 @@ public class ChatService
 
         return createdChat;
     }
+
 
     public async Task<Chat> GetPrivateChat(Guid user1Id, Guid user2Id)
     {

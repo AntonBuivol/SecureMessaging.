@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using SecureMessaging.Models;
 using Supabase;
 using Supabase.Postgrest;
+using Device = SecureMessaging.Models.Device;
 
 namespace SecureMessaging.Services;
 
@@ -52,6 +53,10 @@ public class AuthService
     {
         try
         {
+            // Получаем информацию об устройстве
+            var deviceName = DeviceInfo.Name;
+            var deviceInfo = $"{DeviceInfo.Platform} {DeviceInfo.Version}";
+
             // Проверка существующего пользователя
             var existingUser = await _supabase.From<User>()
                 .Where(x => x.Username == username)
@@ -62,10 +67,10 @@ public class AuthService
                 return (false, "Username is already taken");
             }
 
-            // Создание нового пользователя с явным Guid
+            // Создание нового пользователя
             var newUser = new User
             {
-                Id = Guid.NewGuid(), // Явное создание Guid
+                Id = Guid.NewGuid(),
                 Username = username,
                 PasswordHash = HashPassword(password),
                 DisplayName = displayName,
@@ -75,6 +80,9 @@ public class AuthService
 
             var response = await _supabase.From<User>().Insert(newUser);
             var createdUser = response.Models.First();
+
+            // Добавляем устройство
+            await AddDeviceForUser(createdUser.Id, deviceName, deviceInfo, isPrimary: true, isCurrent: true);
 
             // Генерация JWT токена
             var jwtToken = GenerateJwtToken(createdUser.Id);
@@ -93,6 +101,10 @@ public class AuthService
     {
         try
         {
+            // Получаем информацию об устройстве
+            var deviceName = DeviceInfo.Name;
+            var deviceInfo = $"{DeviceInfo.Platform} {DeviceInfo.Version}";
+
             var user = await _supabase.From<User>()
                 .Where(x => x.Username == username)
                 .Single();
@@ -101,6 +113,9 @@ public class AuthService
             {
                 return (false, "Invalid username or password");
             }
+
+            // Добавляем/обновляем устройство
+            await AddDeviceForUser(user.Id, deviceName, deviceInfo, isPrimary: false, isCurrent: true);
 
             // Генерация JWT токена
             var jwtToken = GenerateJwtToken(user.Id);
@@ -112,6 +127,39 @@ public class AuthService
         {
             Console.WriteLine($"Login error: {ex.Message}");
             return (false, "Login failed. Please try again.");
+        }
+    }
+
+    private async Task AddDeviceForUser(Guid userId, string deviceName, string deviceInfo, bool isPrimary, bool isCurrent)
+    {
+        // Проверяем, существует ли уже такое устройство
+        var existingDevice = await _supabase.From<Device>()
+            .Where(x => x.UserId == userId && x.DeviceInfo == deviceInfo)
+            .Single();
+
+        if (existingDevice != null)
+        {
+            // Обновляем существующее устройство
+            existingDevice.LastActive = DateTime.UtcNow;
+            existingDevice.IsCurrent = isCurrent;
+            await _supabase.From<Device>().Update(existingDevice);
+        }
+        else
+        {
+            // Создаем новое устройство
+            var newDevice = new Device
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                DeviceName = deviceName,
+                DeviceInfo = deviceInfo,
+                IsPrimary = isPrimary,
+                IsCurrent = isCurrent,
+                CreatedAt = DateTime.UtcNow,
+                LastActive = DateTime.UtcNow
+            };
+
+            await _supabase.From<Device>().Insert(newDevice);
         }
     }
 
