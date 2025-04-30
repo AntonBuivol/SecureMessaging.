@@ -36,7 +36,7 @@
                                 <Label Text="{Binding SenderName}"
                                    FontSize="12"
                                    FontAttributes="Bold"
-                                   TextColor="{Binding IsCurrentUser, Converter={StaticResource MessageTextColorConverter}}"
+                                   TextColor="{Binding IsCurrentUser, Converter={StaticResource MessageTextColorConverter}}"/>
 
                                 <!-- Текст сообщения -->
                                 <Label Text="{Binding Content}"
