@@ -39,16 +39,27 @@ public class ChatHub : Hub
         var userId = GetUserId();
         var message = await _chatService.SendMessage(chatId, userId, content);
 
-        // Get chat participants
+        // Get chat participants and sender info
         var chatParticipants = await _chatService.GetChatParticipants(chatId);
+        var sender = await _userService.GetUserById(userId);
 
-        // Log message to console
-        _logger.LogInformation($"Message sent to chat {chatId} by user {userId}: {content}");
-
-        // Send message to all participants
+        // Prepare message for each participant
         foreach (var participant in chatParticipants)
         {
-            await Clients.Group(participant.ToString()).SendAsync("ReceiveMessage", message);
+            var clientMessage = new Message
+            {
+                Id = message.Id,
+                ChatId = message.ChatId,
+                SenderId = message.SenderId,
+                Content = message.Content,
+                CreatedAt = message.CreatedAt,
+                IsCurrentUser = participant == userId,
+                SenderName = participant == userId
+                    ? "You"
+                    : sender?.DisplayName ?? sender?.Username ?? "Unknown"
+            };
+
+            await Clients.Group(participant.ToString()).SendAsync("ReceiveMessage", clientMessage);
         }
     }
 

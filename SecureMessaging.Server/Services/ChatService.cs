@@ -6,6 +6,7 @@ using Supabase.Postgrest.Requests;
 using Supabase.Postgrest.Attributes;
 using static Supabase.Postgrest.Constants;
 using System.Diagnostics;
+using Newtonsoft.Json;
 
 namespace SecureMessaging.Server.Services;
 
@@ -141,21 +142,21 @@ public class ChatService
     {
         try
         {
-            var response = await _supabase.From<DataMessage>()
-                .Filter("chat_id", Operator.Equals, chatId.ToString())
-                .Order("created_at", Ordering.Descending)
-                .Get();
+            var response = await _supabase.Rpc<dynamic>("get_chat_messages_with_senders",
+                new Dictionary<string, object>
+                {
+                { "chat_id_param", chatId },
+                { "current_user_id_param", currentUserId }
+                });
 
-            return response.Models.Select(dbMessage => new Message
-            {
-                Id = dbMessage.Id,
-                ChatId = dbMessage.ChatId,
-                SenderId = dbMessage.SenderId,
-                Content = dbMessage.Content,
-                CreatedAt = dbMessage.CreatedAt,
-                IsCurrentUser = dbMessage.SenderId == currentUserId,
-                SenderName = dbMessage.SenderId == currentUserId ? "You" : "Other"
-            }).ToList();
+            if (response == null)
+                return new List<Message>();
+
+            var messages = JsonConvert.DeserializeObject<List<Message>>(response.ToString());
+
+            // Explicitly create a Func delegate for OrderBy
+            Func<Message, DateTime> orderByFunc = m => m.CreatedAt;
+            return messages?.OrderBy(orderByFunc).ToList() ?? new List<Message>();
         }
         catch (Exception ex)
         {

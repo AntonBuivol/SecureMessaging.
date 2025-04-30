@@ -1,4 +1,5 @@
-﻿using SecureMessaging.Models;
+﻿using Newtonsoft.Json;
+using SecureMessaging.Models;
 using Supabase;
 using System.Diagnostics;
 using static Supabase.Postgrest.Constants;
@@ -41,21 +42,29 @@ public class ChatService
 
     public async Task<List<Message>> GetChatMessages(Guid chatId, Guid userId)
     {
-        var response = await _supabase
-            .From<Message>()
-            .Filter("chat_id", Supabase.Postgrest.Constants.Operator.Equals, chatId)
-            .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
-            .Get();
-
-        var messages = response.Models;
-
-        // Set IsCurrentUser flag
-        foreach (var message in messages)
+        try
         {
-            message.IsCurrentUser = message.SenderId == userId;
-        }
+            var response = await _supabase.Rpc<dynamic>("get_chat_messages_with_senders",
+                new Dictionary<string, object>
+                {
+                { "chat_id_param", chatId },
+                { "current_user_id_param", userId }
+                });
 
-        return messages;
+            if (response == null)
+                return new List<Message>();
+
+            var messages = JsonConvert.DeserializeObject<List<Message>>(response.ToString());
+
+            // Explicitly create a Func delegate for OrderBy
+            Func<Message, DateTime> orderByFunc = m => m.CreatedAt;
+            return messages?.OrderBy(orderByFunc).ToList() ?? new List<Message>();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error getting messages: {ex}");
+            return new List<Message>();
+        }
     }
 
     public async Task<ChatWithParticipants> GetChatWithParticipants(Guid chatId, Guid currentUserId)

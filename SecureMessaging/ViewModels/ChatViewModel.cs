@@ -138,8 +138,6 @@ public partial class ChatViewModel : ObservableObject
         }
     }
 
-
-
     [RelayCommand]
     private async Task LoadMessages()
     {
@@ -149,6 +147,8 @@ public partial class ChatViewModel : ObservableObject
         {
             var messages = await _chatService.GetChatMessages(Chat.Id, _authService.GetCurrentUserId());
             Messages.Clear();
+
+            // Добавляем сообщения в обратном порядке (новые внизу)
             foreach (var msg in messages.OrderBy(m => m.CreatedAt))
             {
                 Messages.Add(msg);
@@ -157,6 +157,7 @@ public partial class ChatViewModel : ObservableObject
         catch (Exception ex)
         {
             Debug.WriteLine($"Error loading messages: {ex}");
+            await Shell.Current.DisplayAlert("Error", "Failed to load messages", "OK");
         }
     }
 
