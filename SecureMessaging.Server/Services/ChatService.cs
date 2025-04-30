@@ -5,6 +5,7 @@ using Supabase.Postgrest;
 using Supabase.Postgrest.Requests;
 using Supabase.Postgrest.Attributes;
 using static Supabase.Postgrest.Constants;
+using System.Diagnostics;
 
 namespace SecureMessaging.Server.Services;
 
@@ -154,12 +155,21 @@ public class ChatService
     }
 
     public async Task<List<Guid>> GetChatParticipants(Guid chatId)
+{
+    try
     {
         var response = await _supabase
             .From<UserChat>()
+            .Select(x => new object[] { x.UserId })
             .Where(x => x.ChatId == chatId)
             .Get();
 
         return response.Models.Select(x => x.UserId).ToList();
     }
+    catch (Exception ex)
+    {
+        Debug.WriteLine($"Error getting chat participants: {ex}");
+        throw;
+    }
+}
 }

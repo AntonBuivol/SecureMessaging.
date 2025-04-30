@@ -58,36 +58,23 @@ public class ChatService
         return messages;
     }
 
-    public async Task<List<User>> GetChatParticipants(Guid chatId)
+    public async Task<ChatWithParticipants> GetChatWithParticipants(Guid chatId, Guid currentUserId)
     {
         try
         {
-            // Получаем связи пользователей с чатом
-            var response = await _supabase
-                .From<UserChat>()
-                .Select("user_id")
-                .Filter("chat_id", Operator.Equals, chatId.ToString())
-                .Get();
+            var response = await _supabase.Rpc<ChatWithParticipants>("get_chat_with_participants",
+                new Dictionary<string, object>
+                {
+                { "chat_id_param", chatId },
+                { "current_user_id_param", currentUserId }
+                });
 
-            var userIds = response.Models
-                .Select(x => x.UserId)
-                .Distinct()
-                .ToList();
-
-            if (userIds.Count == 0) return new List<User>();
-
-            // Получаем данные пользователей
-            var usersResponse = await _supabase
-                .From<User>()
-                .Filter("id", Operator.In, userIds.Select(id => id.ToString()).ToList())
-                .Get();
-
-            return usersResponse.Models;
+            return response;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Error getting participants: {ex}");
-            return new List<User>();
+            Debug.WriteLine($"Error getting chat with participants: {ex}");
+            throw;
         }
     }
 

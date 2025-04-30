@@ -117,41 +117,14 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
-            if (chat == null) return;
+            if (chat == null || chat.Id == Guid.Empty) return;
 
-            // Создаем базовый объект чата для передачи
-            var chatToPass = new Chat
-            {
-                Id = chat.Id,
-                IsGroup = chat.IsGroup,
-                DisplayName = chat.DisplayName
-            };
-
-            Debug.WriteLine($"Passing chat: {chatToPass?.Id}, Name: {chatToPass?.DisplayName}");
-            Debug.WriteLine($"Navigation state: {Shell.Current.CurrentState}");
-
-            // Для приватных чатов загружаем имя собеседника
-            if (!chat.IsGroup)
-            {
-                var participants = await _chatService.GetChatParticipants(chat.Id);
-                if (participants.Count == 2)
-                {
-                    var currentUserId = _authService.GetCurrentUserId();
-                    var otherUser = participants.FirstOrDefault(p => p.Id != currentUserId);
-                    chatToPass.DisplayName = otherUser?.DisplayName ?? otherUser?.Username ?? "Unknown";
-                }
-            }
-
-            // Навигация с минимально необходимыми данными
-            await Shell.Current.GoToAsync("///ChatPage", new Dictionary<string, object>
-        {
-            { "Chat", chatToPass }
-        });
+            NavigationData.CurrentChatId = chat.Id;
+            await Shell.Current.GoToAsync("///ChatPage");
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"Navigation error: {ex}");
-            await Shell.Current.DisplayAlert("Error", "Couldn't open chat", "OK");
         }
     }
 

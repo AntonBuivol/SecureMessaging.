@@ -15,10 +15,13 @@ public partial class ChatViewModel : ObservableObject
     private readonly AuthService _authService;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Title))]
     private Chat _chat;
 
-    public string Title => Chat?.DisplayName ?? "Chat";
+    [ObservableProperty]
+    private string _title;
+
+    [ObservableProperty]
+    private string _otherUserDisplayName;
 
     [ObservableProperty]
     private string _messageText;
@@ -40,24 +43,102 @@ public partial class ChatViewModel : ObservableObject
         _signalRService.MessageReceived += OnMessageReceived;
     }
 
-    public void ApplyQueryAttributes(IDictionary<string, object> query)
+    public async void ApplyQueryAttributes(IDictionary<string, object> query)
     {
         try
         {
-            if (query != null && query.TryGetValue("Chat", out var chatObj))
+            if (query != null && query.TryGetValue("Chat", out var chatObj) && chatObj is Chat chat)
             {
-                if (chatObj is Chat chat)
-                {
-                    Chat = chat;
-                    OnPropertyChanged(nameof(Chat));
-                }
+                Chat = chat;
+                await LoadChatDetails();
             }
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"Error applying query: {ex}");
+            await Shell.Current.DisplayAlert("Error", "Failed to load chat", "OK");
+            await Shell.Current.GoToAsync("..");
         }
     }
+
+    [RelayCommand]
+    public async Task LoadChat(Guid chatId)
+    {
+        try
+        {
+            var currentUserId = _authService.GetCurrentUserId();
+            if (currentUserId == Guid.Empty)
+            {
+                Debug.WriteLine("User not authenticated");
+                await Shell.Current.GoToAsync("..");
+                return;
+            }
+
+            var chatWithParticipants = await _chatService.GetChatWithParticipants(chatId, currentUserId);
+
+            if (chatWithParticipants?.Chat == null)
+            {
+                Debug.WriteLine("Chat not found");
+                await Shell.Current.GoToAsync("..");
+                return;
+            }
+
+            Chat = chatWithParticipants.Chat;
+
+            // Set title
+            if (!Chat.IsGroup && chatWithParticipants.Participants?.Count > 0)
+            {
+                var otherUser = chatWithParticipants.Participants.First();
+                Title = otherUser.DisplayName ?? otherUser.Username ?? "Unknown";
+            }
+            else
+            {
+                Title = Chat.GroupName ?? "Group Chat";
+            }
+
+            await LoadMessages();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error loading chat: {ex}");
+            await Shell.Current.DisplayAlert("Error", "Failed to load chat", "OK");
+            await Shell.Current.GoToAsync("..");
+        }
+    }
+
+    private async Task LoadChatDetails()
+    {
+        if (Chat?.Id == null) return;
+
+        try
+        {
+            var currentUserId = _authService.GetCurrentUserId();
+            var chatWithParticipants = await _chatService.GetChatWithParticipants(Chat.Id, currentUserId);
+
+            // Update chat details
+            Chat = chatWithParticipants.Chat;
+
+            // Set title based on chat type
+            if (!Chat.IsGroup && chatWithParticipants.Participants.Count > 0)
+            {
+                var otherUser = chatWithParticipants.Participants.First();
+                Title = otherUser.DisplayName ?? otherUser.Username;
+            }
+            else
+            {
+                Title = Chat.GroupName ?? "Group Chat";
+            }
+
+            await LoadMessages();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error loading chat details: {ex}");
+            throw;
+        }
+    }
+
+
 
     [RelayCommand]
     private async Task LoadMessages()
@@ -87,19 +168,26 @@ public partial class ChatViewModel : ObservableObject
         try
         {
             var currentUserId = _authService.GetCurrentUserId();
-            Debug.WriteLine($"Sending message - ChatId: {Chat?.Id}, UserId: {currentUserId}");
 
-            if (Chat?.Id == null || currentUserId == Guid.Empty)
+            if (Chat?.Id == null)
             {
-                Debug.WriteLine("Validation failed - Chat or User not loaded");
-                await Shell.Current.DisplayAlert("Error",
-                    Chat?.Id == null ? "Chat not loaded" : "User not authenticated",
-                    "OK");
+                await Shell.Current.DisplayAlert("Error", "Chat not loaded", "OK");
+                await Shell.Current.GoToAsync("..");
                 return;
             }
 
+            if (currentUserId == Guid.Empty)
+            {
+                await Shell.Current.DisplayAlert("Error", "User not authenticated", "OK");
+                return;
+            }
+
+            await _signalRService.SendMessage(Chat.Id, MessageText);
+
+            // Add message locally
             var message = new Message
             {
+                Id = Guid.NewGuid(),
                 ChatId = Chat.Id,
                 SenderId = currentUserId,
                 Content = MessageText,
@@ -108,7 +196,6 @@ public partial class ChatViewModel : ObservableObject
                 SenderName = "You"
             };
 
-            await _signalRService.SendMessage(Chat.Id, MessageText);
             Messages.Insert(0, message);
             MessageText = string.Empty;
         }

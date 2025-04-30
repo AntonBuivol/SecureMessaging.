@@ -18,22 +18,22 @@ public partial class ChatPage : ContentPage
 
         if (BindingContext is ChatViewModel vm)
         {
-            Debug.WriteLine($"ChatPage appearing - ChatId: {vm.Chat?.Id}");
-
-            if (vm.Chat == null)
-            {
-                Debug.WriteLine("Chat is null - going back");
-                await Shell.Current.GoToAsync("..");
-                return;
-            }
-
             try
             {
-                await vm.LoadMessagesCommand.ExecuteAsync(null);
+                if (NavigationData.CurrentChatId != Guid.Empty)
+                {
+                    await vm.LoadChat(NavigationData.CurrentChatId);
+                    NavigationData.CurrentChatId = Guid.Empty; // Очищаем после использования
+                }
+                else
+                {
+                    await Shell.Current.GoToAsync("..");
+                }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error loading messages: {ex}");
+                Debug.WriteLine($"Error: {ex}");
+                await Shell.Current.GoToAsync("..");
             }
         }
     }
