@@ -145,14 +145,17 @@ public partial class ChatViewModel : ObservableObject
 
         try
         {
-            var messages = await _chatService.GetChatMessages(Chat.Id, _authService.GetCurrentUserId());
-            Messages.Clear();
+            var currentUserId = _authService.GetCurrentUserId();
+            var messages = await _chatService.GetChatMessages(Chat.Id, currentUserId);
 
-            // Добавляем сообщения в обратном порядке (новые внизу)
-            foreach (var msg in messages.OrderBy(m => m.CreatedAt))
+            MainThread.BeginInvokeOnMainThread(() =>
             {
-                Messages.Add(msg);
-            }
+                Messages.Clear();
+                foreach (var msg in messages.OrderBy(m => m.CreatedAt))
+                {
+                    Messages.Add(msg);
+                }
+            });
         }
         catch (Exception ex)
         {
@@ -169,36 +172,16 @@ public partial class ChatViewModel : ObservableObject
         try
         {
             var currentUserId = _authService.GetCurrentUserId();
+            if (currentUserId == Guid.Empty) return;
 
-            if (Chat?.Id == null)
-            {
-                await Shell.Current.DisplayAlert("Error", "Chat not loaded", "OK");
-                await Shell.Current.GoToAsync("..");
-                return;
-            }
-
-            if (currentUserId == Guid.Empty)
-            {
-                await Shell.Current.DisplayAlert("Error", "User not authenticated", "OK");
-                return;
-            }
-
+            // Отправляем сообщение через SignalR
             await _signalRService.SendMessage(Chat.Id, MessageText);
 
-            // Add message locally
-            var message = new Message
-            {
-                Id = Guid.NewGuid(),
-                ChatId = Chat.Id,
-                SenderId = currentUserId,
-                Content = MessageText,
-                CreatedAt = DateTime.UtcNow,
-                IsCurrentUser = true,
-                SenderName = "You"
-            };
-
-            Messages.Insert(0, message);
+            // Очищаем поле ввода
             MessageText = string.Empty;
+
+            // Обновляем список сообщений
+            await LoadMessages();
         }
         catch (Exception ex)
         {
@@ -207,13 +190,15 @@ public partial class ChatViewModel : ObservableObject
         }
     }
 
+
     private void OnMessageReceived(Message message)
     {
-        if (message.ChatId == Chat.Id) // This will now work
+        if (message.ChatId == Chat.Id)
         {
-            MainThread.BeginInvokeOnMainThread(() =>
+            MainThread.BeginInvokeOnMainThread(async () =>
             {
-                Messages.Insert(0, message);
+                // Обновляем весь список сообщений
+                await LoadMessages();
             });
         }
     }

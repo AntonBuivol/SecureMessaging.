@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using SecureMessaging.Models;
 using Supabase;
 using System.Diagnostics;
@@ -54,11 +55,17 @@ public class ChatService
             if (response == null)
                 return new List<Message>();
 
-            var messages = JsonConvert.DeserializeObject<List<Message>>(response.ToString());
+            var result = JObject.Parse(response.ToString());
 
-            // Explicitly create a Func delegate for OrderBy
-            Func<Message, DateTime> orderByFunc = m => m.CreatedAt;
-            return messages?.OrderBy(orderByFunc).ToList() ?? new List<Message>();
+            if (result["error"] != null)
+            {
+                Debug.WriteLine($"Chat error: {result["error"]}");
+                return new List<Message>();
+            }
+
+            var messagesJson = result["messages"]?.ToString() ?? "[]";
+            return JsonConvert.DeserializeObject<List<Message>>(messagesJson)
+                ?? new List<Message>();
         }
         catch (Exception ex)
         {

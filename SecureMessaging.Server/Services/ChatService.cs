@@ -7,6 +7,7 @@ using Supabase.Postgrest.Attributes;
 using static Supabase.Postgrest.Constants;
 using System.Diagnostics;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace SecureMessaging.Server.Services;
 
@@ -152,11 +153,18 @@ public class ChatService
             if (response == null)
                 return new List<Message>();
 
-            var messages = JsonConvert.DeserializeObject<List<Message>>(response.ToString());
+            var result = JObject.Parse(response.ToString());
 
-            // Explicitly create a Func delegate for OrderBy
-            Func<Message, DateTime> orderByFunc = m => m.CreatedAt;
-            return messages?.OrderBy(orderByFunc).ToList() ?? new List<Message>();
+            if (result["error"] != null)
+            {
+                Console.WriteLine($"Chat error: {result["error"]}");
+                return new List<Message>();
+            }
+
+            var messagesJson = result["messages"]?.ToString() ?? "[]";
+            var messages = JsonConvert.DeserializeObject<List<Message>>(messagesJson);
+
+            return messages ?? new List<Message>();
         }
         catch (Exception ex)
         {

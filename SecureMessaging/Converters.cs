@@ -2,19 +2,6 @@
 
 namespace SecureMessaging.Converters;
 
-public class StringToVisibilityConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        return !string.IsNullOrEmpty(value as string);
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
-}
-
 public class MessageColorConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
@@ -22,8 +9,8 @@ public class MessageColorConverter : IValueConverter
         if (value is bool isCurrentUser)
         {
             return isCurrentUser ?
-                Color.FromArgb("#5C9DFF") :  // Blue for current user
-                Color.FromArgb("#F0F0F0");    // Light gray for other user
+                Color.FromArgb("#5C9DFF") :  // Синий для текущего пользователя
+                Color.FromArgb("#FFFFFF");    // Белый для другого пользователя
         }
         return Colors.Gray;
     }
@@ -40,7 +27,7 @@ public class MessageTextColorConverter : IValueConverter
     {
         if (value is bool isCurrentUser)
         {
-            return isCurrentUser ? Colors.Black : Colors.White;
+            return isCurrentUser ? Colors.White : Colors.Black;
         }
         return Colors.Black;
     }
@@ -56,6 +43,19 @@ public class MessageAlignmentConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         return (bool)value ? LayoutOptions.End : LayoutOptions.Start;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class MessageColumnConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        return (bool)value ? 1 : 0; // 1 - правая колонка, 0 - левая
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

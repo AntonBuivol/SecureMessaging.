@@ -12,11 +12,11 @@
             </ResourceDictionary.MergedDictionaries>
 
             <!-- Конвертеры -->
-            <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
             <converters:MessageColorConverter x:Key="MessageColorConverter" />
             <converters:MessageTextColorConverter x:Key="MessageTextColorConverter" />
             <converters:MessageAlignmentConverter x:Key="MessageAlignmentConverter" />
             <converters:InverseBooleanConverter x:Key="InverseBooleanConverter" />
+            <converters:MessageColumnConverter x:Key="MessageColumnConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

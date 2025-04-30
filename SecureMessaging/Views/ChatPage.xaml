@@ -1,37 +1,53 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:converters="clr-namespace:SecureMessaging.Converters"
              x:Class="SecureMessaging.Views.ChatPage"
              Title="{Binding Title}">
 
+    <ContentPage.Resources>
+        <converters:MessageColorConverter x:Key="MessageColorConverter" />
+        <converters:MessageTextColorConverter x:Key="MessageTextColorConverter" />
+        <converters:MessageAlignmentConverter x:Key="MessageAlignmentConverter" />
+        <converters:MessageColumnConverter x:Key="MessageColumnConverter" />
+    </ContentPage.Resources>
+
     <Grid RowDefinitions="*,Auto">
-        <CollectionView ItemsSource="{Binding Messages}"
+        <CollectionView x:Name="MessagesView"
+               ItemsSource="{Binding Messages}"
                VerticalOptions="FillAndExpand"
-               VerticalScrollBarVisibility="Always">
+               SelectionMode="None"
+               Margin="10,0">
             <CollectionView.ItemsLayout>
-                <LinearItemsLayout Orientation="Vertical" ItemSpacing="5" />
+                <LinearItemsLayout Orientation="Vertical" ItemSpacing="10" />
             </CollectionView.ItemsLayout>
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <Grid Padding="10,5">
-                        <Frame BackgroundColor="{Binding IsCurrentUser, Converter={StaticResource MessageColorConverter}}"
-                             Padding="10"
-                             CornerRadius="10"
-                            WidthRequest="200"
-                             HorizontalOptions="{Binding IsCurrentUser, Converter={StaticResource MessageAlignmentConverter}}"
-                             HasShadow="False">
+                    <Grid Padding="10,5" ColumnDefinitions="*,*">
+                        <!-- Сообщения других пользователей (слева) -->
+                        <Frame Grid.Column="{Binding IsCurrentUser, Converter={StaticResource MessageColumnConverter}}"
+                           BackgroundColor="{Binding IsCurrentUser, Converter={StaticResource MessageColorConverter}}"
+                           Padding="10"
+                           CornerRadius="10"
+                           HorizontalOptions="{Binding IsCurrentUser, Converter={StaticResource MessageAlignmentConverter}}"
+                           HasShadow="False">
                             <VerticalStackLayout>
+                                <!-- Имя отправителя (только для чужих сообщений) -->
                                 <Label Text="{Binding SenderName}"
-                                     FontSize="10"
-                                     FontAttributes="Bold"
-                                     TextColor="{Binding IsCurrentUser, Converter={StaticResource MessageTextColorConverter}}"/>
+                                   FontSize="12"
+                                   FontAttributes="Bold"
+                                   TextColor="{Binding IsCurrentUser, Converter={StaticResource MessageTextColorConverter}}"
+
+                                <!-- Текст сообщения -->
                                 <Label Text="{Binding Content}"
-                                     FontSize="15"
-                                     TextColor="{Binding IsCurrentUser, Converter={StaticResource MessageTextColorConverter}}"/>
+                                   FontSize="16"
+                                   TextColor="{Binding IsCurrentUser, Converter={StaticResource MessageTextColorConverter}}"/>
+
+                                <!-- Время сообщения -->
                                 <Label Text="{Binding CreatedAt, StringFormat='{0:HH:mm}'}"
-                                     FontSize="10"
-                                     HorizontalOptions="End"
-                                     TextColor="{Binding IsCurrentUser, Converter={StaticResource MessageTextColorConverter}}"/>
+                                   FontSize="10"
+                                   HorizontalOptions="End"
+                                   TextColor="{Binding IsCurrentUser, Converter={StaticResource MessageTextColorConverter}}"/>
                             </VerticalStackLayout>
                         </Frame>
                     </Grid>
@@ -39,16 +55,22 @@
             </CollectionView.ItemTemplate>
         </CollectionView>
 
+        <!-- Панель ввода сообщения -->
         <Grid Grid.Row="1" 
               Padding="10"
-              ColumnDefinitions="*,Auto">
+              ColumnDefinitions="*,Auto"
+              BackgroundColor="White">
             <Entry Text="{Binding MessageText}"
                    Placeholder="Type a message..."
                    ReturnCommand="{Binding SendMessageCommand}"
                    Grid.Column="0"/>
             <Button Text="Send"
                     Command="{Binding SendMessageCommand}"
-                    Grid.Column="1"/>
+                    Grid.Column="1"
+                    BackgroundColor="#5C9DFF"
+                    TextColor="White"
+                    CornerRadius="5"
+                    Margin="5,0,0,0"/>
         </Grid>
     </Grid>
 </ContentPage>
