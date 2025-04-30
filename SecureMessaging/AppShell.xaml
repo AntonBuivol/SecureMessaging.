@@ -30,6 +30,10 @@
                   ContentTemplate="{DataTemplate views:RegisterPage}" 
                   FlyoutItemIsVisible="False"/>
 
+    <ShellContent Route="ChatPage" 
+                  ContentTemplate="{DataTemplate views:ChatPage}"
+                  FlyoutItemIsVisible="False"/>
+
     <FlyoutItem Title="Chats" Icon="chat.png">
         <ShellContent Route="MainPage" 
                       ContentTemplate="{DataTemplate views:MainPage}"/>

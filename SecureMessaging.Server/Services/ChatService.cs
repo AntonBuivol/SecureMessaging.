@@ -1,5 +1,9 @@
-﻿using SecureMessaging.Server.Models;
+﻿using Microsoft.AspNetCore.SignalR;
+using SecureMessaging.Server.Models;
 using Supabase;
+using Supabase.Postgrest;
+using Supabase.Postgrest.Requests;
+using Supabase.Postgrest.Attributes;
 
 namespace SecureMessaging.Server.Services;
 
@@ -12,76 +16,59 @@ public class ChatService
         _supabase = supabase;
     }
 
-    public async Task<Chat> CreatePrivateChat(Guid user1Id, Guid user2Id)
+    public class RpcResult
     {
-        // Check if chat already exists
-        var existingChat = await GetPrivateChat(user1Id, user2Id);
-        if (existingChat != null)
-        {
-            return existingChat;
-        }
-
-        // Create new chat
-        var newChat = new Chat
-        {
-            Id = Guid.NewGuid(), // Явно задаем ID
-            IsGroup = false,
-            CreatedAt = DateTime.UtcNow,
-            LastMessageAt = null
-        };
-
-        var chatResponse = await _supabase
-            .From<Chat>()
-            .Insert(newChat);
-
-        var createdChat = chatResponse.Models.First();
-
-        // Add users to chat
-        await _supabase
-            .From<UserChat>()
-            .Insert(new UserChat { UserId = user1Id, ChatId = createdChat.Id });
-
-        await _supabase
-            .From<UserChat>()
-            .Insert(new UserChat { UserId = user2Id, ChatId = createdChat.Id });
-
-        return createdChat;
+        public Guid chat_id { get; set; }
     }
 
+    public async Task<Chat> CreatePrivateChat(Guid user1Id, Guid user2Id)
+    {
+        try
+        {
+            // Вызываем PostgreSQL функцию через RPC
+            var response = await _supabase.Rpc<RpcResult>("find_or_create_private_chat",
+                new Dictionary<string, object>
+                {
+                { "user1_id", user1Id },
+                { "user2_id", user2Id }
+                });
+
+            // Получаем ID чата
+            var chatId = response.chat_id;
+
+            // Получаем полную информацию о чате
+            return await _supabase.From<Chat>()
+                .Where(x => x.Id == chatId)
+                .Single();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in CreatePrivateChat: {ex}");
+            throw new Exception("Failed to create private chat", ex);
+        }
+    }
 
     public async Task<Chat> GetPrivateChat(Guid user1Id, Guid user2Id)
     {
-        // Get all chats for user1
-        var user1Chats = await _supabase
-            .From<UserChat>()
-            .Where(x => x.UserId == user1Id)
-            .Get();
-
-        // Get all chats for user2
-        var user2Chats = await _supabase
-            .From<UserChat>()
-            .Where(x => x.UserId == user2Id)
-            .Get();
-
-        // Find intersection (chats both users are in)
-        var commonChatIds = user1Chats.Models.Select(x => x.ChatId)
-            .Intersect(user2Chats.Models.Select(x => x.ChatId));
-
-        // Check if any of these chats are private (non-group)
-        foreach (var chatId in commonChatIds)
+        try
         {
-            var chat = await _supabase
-                .From<Chat>()
-                .Where(x => x.Id == chatId && !x.IsGroup)
+            var response = await _supabase.Rpc("find_or_create_private_chat",
+                new Dictionary<string, object>
+                {
+                { "user1_id", user1Id },
+                { "user2_id", user2Id }
+                });
+
+            var chatId = new Guid(response.Content);
+
+            return await _supabase.From<Chat>()
+                .Where(x => x.Id == chatId)
                 .Single();
-
-            if (chat != null)
-            {
-                return chat;
-            }
         }
-
-        return null;
+        catch
+        {
+            return null;
+        }
     }
 
     public async Task<List<Chat>> GetUserChats(Guid userId)

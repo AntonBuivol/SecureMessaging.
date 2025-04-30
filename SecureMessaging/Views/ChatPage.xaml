@@ -4,30 +4,38 @@
              x:Class="SecureMessaging.Views.ChatPage"
              Title="{Binding Chat.DisplayName}">
 
-    <Grid>
-
-        <CollectionView ItemsSource="{Binding Messages}">
+    <Grid RowDefinitions="*,Auto">
+        <CollectionView ItemsSource="{Binding Messages}"
+                        VerticalOptions="FillAndExpand">
             <CollectionView.ItemTemplate>
                 <DataTemplate>
                     <Grid Padding="10">
                         <Frame BackgroundColor="{Binding IsCurrentUser, Converter={StaticResource MessageColorConverter}}"
                                Padding="10"
                                HorizontalOptions="{Binding IsCurrentUser, Converter={StaticResource MessageAlignmentConverter}}">
-                            <Label Text="{Binding Content}"
-                                   FontSize="16"/>
+                            <VerticalStackLayout>
+                                <Label Text="{Binding SenderName}"
+                                       FontSize="12"
+                                       TextColor="Gray"/>
+                                <Label Text="{Binding Content}"
+                                       FontSize="16"/>
+                            </VerticalStackLayout>
                         </Frame>
                     </Grid>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
 
-        <Grid RowDefinitions="Auto" 
+        <Grid Grid.Row="1" 
               Padding="10"
-              VerticalOptions="End">
+              ColumnDefinitions="*,Auto">
             <Entry Text="{Binding MessageText}"
                    Placeholder="Type a message..."
-                   ReturnCommand="{Binding SendMessageCommand}"/>
+                   ReturnCommand="{Binding SendMessageCommand}"
+                   Grid.Column="0"/>
+            <Button Text="Send"
+                    Command="{Binding SendMessageCommand}"
+                    Grid.Column="1"/>
         </Grid>
-
     </Grid>
 </ContentPage>

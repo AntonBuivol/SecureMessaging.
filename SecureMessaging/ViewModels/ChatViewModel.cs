@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using SecureMessaging.Models;
 using SecureMessaging.Services;
 using System.Collections.ObjectModel;
+using System.Web;
 
 namespace SecureMessaging.ViewModels;
 
@@ -33,6 +34,21 @@ public partial class ChatViewModel : ObservableObject
         Messages = new ObservableCollection<Message>();
 
         _signalRService.MessageReceived += OnMessageReceived;
+    }
+
+    public void ApplyQueryAttributes(IDictionary<string, object> query)
+    {
+        if (query.TryGetValue("Chat", out object chatObj) && chatObj is Chat chat)
+        {
+            Chat = chat;
+            OnPropertyChanged(nameof(Chat));
+        }
+        else if (query.TryGetValue("Chat", out object chatJson) && chatJson is string json)
+        {
+            // If the chat was passed as JSON string (alternative approach)
+            Chat = System.Text.Json.JsonSerializer.Deserialize<Chat>(HttpUtility.UrlDecode(json));
+            OnPropertyChanged(nameof(Chat));
+        }
     }
 
     [RelayCommand]

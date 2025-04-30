@@ -80,10 +80,12 @@ public class ChatService
 
     public async Task<Chat> GetChat(Guid chatId)
     {
-        return await _supabase
+        var chat = await _supabase
             .From<Chat>()
             .Filter("id", Supabase.Postgrest.Constants.Operator.Equals, chatId)
             .Single();
+
+        return chat;
     }
 
     public async Task StartPrivateChat(Guid currentUserId, Guid otherUserId)

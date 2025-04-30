@@ -95,9 +95,21 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task NavigateToChat(Chat chat)
     {
+        // Get the full chat details including participants
+        var fullChat = await _chatService.GetChat(chat.Id);
+        var participants = await _chatService.GetChatParticipants(chat.Id);
+
+        // Set display name for the chat
+        if (!fullChat.IsGroup && participants.Count == 2)
+        {
+            var currentUserId = _authService.GetCurrentUserId();
+            var otherUser = participants.FirstOrDefault(p => p.Id != currentUserId);
+            fullChat.DisplayName = otherUser?.DisplayName ?? otherUser?.Username ?? "Unknown";
+        }
+
         var parameters = new Dictionary<string, object>
         {
-            { "Chat", chat }
+            { "Chat", fullChat }
         };
 
         await Shell.Current.GoToAsync("ChatPage", parameters);
