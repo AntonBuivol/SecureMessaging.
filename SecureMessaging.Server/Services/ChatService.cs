@@ -77,25 +77,11 @@ public class ChatService
     {
         try
         {
-            // Проверяем существование чата
-            var chatExists = await _supabase
-                .From<Chat>()
-                .Where(x => x.Id == chatId)
-                .Single();
+            // Проверка существования чата и отправителя
+            await ValidateChatAndSender(chatId, senderId);
 
-            if (chatExists == null)
-                throw new Exception("Chat not found");
-
-            // Проверяем существование отправителя
-            var senderExists = await _supabase
-                .From<User>()
-                .Where(x => x.Id == senderId)
-                .Single();
-
-            if (senderExists == null)
-                throw new Exception("Sender not found");
-
-            var newMessage = new Message
+            // Создаем сообщение для БД
+            var dbMessage = new DataMessage
             {
                 Id = Guid.NewGuid(),
                 ChatId = chatId,
@@ -104,20 +90,24 @@ public class ChatService
                 CreatedAt = DateTime.UtcNow
             };
 
-            var response = await _supabase
-                .From<Message>()
-                .Insert(newMessage);
+            // Вставляем в БД
+            var response = await _supabase.From<DataMessage>().Insert(dbMessage);
+            var insertedMessage = response.Models.First();
 
-            var createdMessage = response.Models.First();
+            // Обновляем время последнего сообщения
+            await UpdateLastMessageTime(chatId);
 
-            // Обновляем время последнего сообщения в чате
-            await _supabase
-                .From<Chat>()
-                .Where(x => x.Id == chatId)
-                .Set(x => x.LastMessageAt, DateTime.UtcNow)
-                .Update();
-
-            return createdMessage;
+            // Преобразуем в клиентскую модель
+            return new Message
+            {
+                Id = insertedMessage.Id,
+                ChatId = insertedMessage.ChatId,
+                SenderId = insertedMessage.SenderId,
+                Content = insertedMessage.Content,
+                CreatedAt = insertedMessage.CreatedAt,
+                IsCurrentUser = insertedMessage.SenderId == senderId,
+                SenderName = "You" // Временное значение, будет обновлено при получении
+            };
         }
         catch (Exception ex)
         {
@@ -126,26 +116,46 @@ public class ChatService
         }
     }
 
-    public async Task<List<Message>> GetChatMessages(Guid chatId, Guid userId)
+    private async Task ValidateChatAndSender(Guid chatId, Guid senderId)
+    {
+        var chatExists = await _supabase.From<Chat>()
+            .Where(x => x.Id == chatId)
+            .Single();
+        if (chatExists == null) throw new Exception("Chat not found");
+
+        var senderExists = await _supabase.From<User>()
+            .Where(x => x.Id == senderId)
+            .Single();
+        if (senderExists == null) throw new Exception("Sender not found");
+    }
+
+    private async Task UpdateLastMessageTime(Guid chatId)
+    {
+        await _supabase.From<Chat>()
+            .Where(x => x.Id == chatId)
+            .Set(x => x.LastMessageAt, DateTime.UtcNow)
+            .Update();
+    }
+
+    public async Task<List<Message>> GetChatMessages(Guid chatId, Guid currentUserId)
     {
         try
         {
-            var response = await _supabase
-                .From<Message>()
+            var response = await _supabase.From<DataMessage>()
                 .Filter("chat_id", Operator.Equals, chatId.ToString())
                 .Order("created_at", Ordering.Descending)
                 .Get();
 
-            var messages = response.Models;
-
-            // Устанавливаем флаги для отображения
-            foreach (var message in messages)
+            return response.Models.Select(dbMessage => new Message
             {
-                message.IsCurrentUser = message.SenderId == userId;
-                message.SenderName = message.IsCurrentUser ? "You" : "Other";
-            }
-
-            return messages;
+                Id = dbMessage.Id,
+                ChatId = dbMessage.ChatId,
+                SenderId = dbMessage.SenderId,
+                Content = dbMessage.Content,
+                CreatedAt = dbMessage.CreatedAt,
+                IsCurrentUser = dbMessage.SenderId == currentUserId,
+                SenderName = dbMessage.SenderId == currentUserId ? "You" : "Other"
+            }).ToList();
         }
         catch (Exception ex)
         {
