@@ -1,5 +1,7 @@
 ﻿using SecureMessaging.Models;
 using Supabase;
+using System.Diagnostics;
+using static Supabase.Postgrest.Constants;
 
 namespace SecureMessaging.Services;
 
@@ -58,34 +60,54 @@ public class ChatService
 
     public async Task<List<User>> GetChatParticipants(Guid chatId)
     {
-        var response = await _supabase
-            .From<UserChat>()
-            .Filter("chat_id", Supabase.Postgrest.Constants.Operator.Equals, chatId)
-            .Get();
-
-        var userIds = response.Models.Select(x => x.UserId).ToList();
-
-        if (userIds.Count == 0)
+        try
         {
+            // Получаем связи пользователей с чатом
+            var response = await _supabase
+                .From<UserChat>()
+                .Select("user_id")
+                .Filter("chat_id", Operator.Equals, chatId.ToString())
+                .Get();
+
+            var userIds = response.Models
+                .Select(x => x.UserId)
+                .Distinct()
+                .ToList();
+
+            if (userIds.Count == 0) return new List<User>();
+
+            // Получаем данные пользователей
+            var usersResponse = await _supabase
+                .From<User>()
+                .Filter("id", Operator.In, userIds.Select(id => id.ToString()).ToList())
+                .Get();
+
+            return usersResponse.Models;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error getting participants: {ex}");
             return new List<User>();
         }
-
-        var usersResponse = await _supabase
-            .From<User>()
-            .Filter("id", Supabase.Postgrest.Constants.Operator.In, userIds)
-            .Get();
-
-        return usersResponse.Models;
     }
 
     public async Task<Chat> GetChat(Guid chatId)
     {
-        var chat = await _supabase
-            .From<Chat>()
-            .Filter("id", Supabase.Postgrest.Constants.Operator.Equals, chatId)
-            .Single();
+        try
+        {
+            // Преобразуем Guid в строку для фильтрации
+            var response = await _supabase
+                .From<Chat>()
+                .Filter("id", Operator.Equals, chatId.ToString())
+                .Single();
 
-        return chat;
+            return response;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting chat: {ex}");
+            throw;
+        }
     }
 
     public async Task StartPrivateChat(Guid currentUserId, Guid otherUserId)
@@ -97,4 +119,6 @@ public class ChatService
                 { "user2_id", otherUserId }
             });
     }
+
+
 }

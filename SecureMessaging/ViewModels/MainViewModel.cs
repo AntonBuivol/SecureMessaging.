@@ -2,7 +2,9 @@
 using CommunityToolkit.Mvvm.Input;
 using SecureMessaging.Models;
 using SecureMessaging.Services;
+using SecureMessaging.Views;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 
 namespace SecureMessaging.ViewModels;
 
@@ -50,16 +52,34 @@ public partial class MainViewModel : ObservableObject
     {
         IsRefreshing = true;
 
-        var userId = _authService.GetCurrentUserId();
-        var chats = await _chatService.GetUserChats(userId);
-
-        Chats.Clear();
-        foreach (var chat in chats)
+        try
         {
-            Chats.Add(chat);
-        }
+            var userId = _authService.GetCurrentUserId();
+            Debug.WriteLine($"Loading chats for user: {userId}");
 
-        IsRefreshing = false;
+            if (userId == Guid.Empty)
+            {
+                await Shell.Current.DisplayAlert("Error", "Please login again", "OK");
+                await Shell.Current.GoToAsync("//LoginPage");
+                return;
+            }
+
+            var chats = await _chatService.GetUserChats(userId);
+
+            Chats.Clear();
+            foreach (var chat in chats)
+            {
+                Chats.Add(chat);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error loading chats: {ex}");
+        }
+        finally
+        {
+            IsRefreshing = false;
+        }
     }
 
     [RelayCommand]
@@ -95,24 +115,44 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task NavigateToChat(Chat chat)
     {
-        // Get the full chat details including participants
-        var fullChat = await _chatService.GetChat(chat.Id);
-        var participants = await _chatService.GetChatParticipants(chat.Id);
-
-        // Set display name for the chat
-        if (!fullChat.IsGroup && participants.Count == 2)
+        try
         {
-            var currentUserId = _authService.GetCurrentUserId();
-            var otherUser = participants.FirstOrDefault(p => p.Id != currentUserId);
-            fullChat.DisplayName = otherUser?.DisplayName ?? otherUser?.Username ?? "Unknown";
+            if (chat == null) return;
+
+            // Создаем базовый объект чата для передачи
+            var chatToPass = new Chat
+            {
+                Id = chat.Id,
+                IsGroup = chat.IsGroup,
+                DisplayName = chat.DisplayName
+            };
+
+            Debug.WriteLine($"Passing chat: {chatToPass?.Id}, Name: {chatToPass?.DisplayName}");
+            Debug.WriteLine($"Navigation state: {Shell.Current.CurrentState}");
+
+            // Для приватных чатов загружаем имя собеседника
+            if (!chat.IsGroup)
+            {
+                var participants = await _chatService.GetChatParticipants(chat.Id);
+                if (participants.Count == 2)
+                {
+                    var currentUserId = _authService.GetCurrentUserId();
+                    var otherUser = participants.FirstOrDefault(p => p.Id != currentUserId);
+                    chatToPass.DisplayName = otherUser?.DisplayName ?? otherUser?.Username ?? "Unknown";
+                }
+            }
+
+            // Навигация с минимально необходимыми данными
+            await Shell.Current.GoToAsync("///ChatPage", new Dictionary<string, object>
+        {
+            { "Chat", chatToPass }
+        });
         }
-
-        var parameters = new Dictionary<string, object>
+        catch (Exception ex)
         {
-            { "Chat", fullChat }
-        };
-
-        await Shell.Current.GoToAsync("ChatPage", parameters);
+            Debug.WriteLine($"Navigation error: {ex}");
+            await Shell.Current.DisplayAlert("Error", "Couldn't open chat", "OK");
+        }
     }
 
     private void OnChatStarted(Chat chat)

@@ -64,21 +64,19 @@ public class ChatHub : Hub
 
             _logger.LogInformation($"Chat created: {chat.Id}");
 
-            // Получаем информацию о собеседнике для DisplayName
             var otherUser = await _userService.GetUserById(otherUserId);
             var currentUser = await _userService.GetUserById(userId);
 
-            // Добавляем DisplayName для клиента
-            var chatForClient = new
+            // Отправляем информацию о чате обоим пользователям
+            await Clients.Caller.SendAsync("ChatStarted", new
             {
                 chat.Id,
                 chat.IsGroup,
                 chat.CreatedAt,
                 chat.LastMessageAt,
                 DisplayName = otherUser?.DisplayName ?? otherUser?.Username ?? "Unknown"
-            };
+            });
 
-            await Clients.Caller.SendAsync("ChatStarted", chatForClient);
             await Clients.User(otherUserId.ToString()).SendAsync("ChatStarted", new
             {
                 chat.Id,
@@ -87,6 +85,7 @@ public class ChatHub : Hub
                 chat.LastMessageAt,
                 DisplayName = currentUser?.DisplayName ?? currentUser?.Username ?? "Unknown"
             });
+            _logger.LogInformation("Chat open");
         }
         catch (Exception ex)
         {

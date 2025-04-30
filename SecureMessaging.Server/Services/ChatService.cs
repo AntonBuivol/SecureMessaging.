@@ -4,6 +4,7 @@ using Supabase;
 using Supabase.Postgrest;
 using Supabase.Postgrest.Requests;
 using Supabase.Postgrest.Attributes;
+using static Supabase.Postgrest.Constants;
 
 namespace SecureMessaging.Server.Services;
 
@@ -48,29 +49,6 @@ public class ChatService
         }
     }
 
-    public async Task<Chat> GetPrivateChat(Guid user1Id, Guid user2Id)
-    {
-        try
-        {
-            var response = await _supabase.Rpc("find_or_create_private_chat",
-                new Dictionary<string, object>
-                {
-                { "user1_id", user1Id },
-                { "user2_id", user2Id }
-                });
-
-            var chatId = new Guid(response.Content);
-
-            return await _supabase.From<Chat>()
-                .Where(x => x.Id == chatId)
-                .Single();
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
     public async Task<List<Chat>> GetUserChats(Guid userId)
     {
         var userChats = await _supabase
@@ -96,44 +74,83 @@ public class ChatService
 
     public async Task<Message> SendMessage(Guid chatId, Guid senderId, string content)
     {
-        var newMessage = new Message
+        try
         {
-            ChatId = chatId,
-            SenderId = senderId,
-            Content = content,
-            CreatedAt = DateTime.UtcNow
-        };
+            // Проверяем существование чата
+            var chatExists = await _supabase
+                .From<Chat>()
+                .Where(x => x.Id == chatId)
+                .Single();
 
-        var response = await _supabase
-            .From<Message>()
-            .Insert(newMessage);
+            if (chatExists == null)
+                throw new Exception("Chat not found");
 
-        var createdMessage = response.Models.First();
+            // Проверяем существование отправителя
+            var senderExists = await _supabase
+                .From<User>()
+                .Where(x => x.Id == senderId)
+                .Single();
 
-        // Update chat's last message timestamp
-        var chat = await _supabase
-            .From<Chat>()
-            .Where(x => x.Id == chatId)
-            .Single();
+            if (senderExists == null)
+                throw new Exception("Sender not found");
 
-        if (chat != null)
-        {
-            chat.LastMessageAt = DateTime.UtcNow;
-            await _supabase.From<Chat>().Update(chat);
+            var newMessage = new Message
+            {
+                Id = Guid.NewGuid(),
+                ChatId = chatId,
+                SenderId = senderId,
+                Content = content,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var response = await _supabase
+                .From<Message>()
+                .Insert(newMessage);
+
+            var createdMessage = response.Models.First();
+
+            // Обновляем время последнего сообщения в чате
+            await _supabase
+                .From<Chat>()
+                .Where(x => x.Id == chatId)
+                .Set(x => x.LastMessageAt, DateTime.UtcNow)
+                .Update();
+
+            return createdMessage;
         }
-
-        return createdMessage;
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error sending message: {ex}");
+            throw;
+        }
     }
 
-    public async Task<List<Message>> GetChatMessages(Guid chatId)
+    public async Task<List<Message>> GetChatMessages(Guid chatId, Guid userId)
     {
-        var response = await _supabase
-            .From<Message>()
-            .Where(x => x.ChatId == chatId)
-            .Order(x => x.CreatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
-            .Get();
+        try
+        {
+            var response = await _supabase
+                .From<Message>()
+                .Filter("chat_id", Operator.Equals, chatId.ToString())
+                .Order("created_at", Ordering.Descending)
+                .Get();
 
-        return response.Models;
+            var messages = response.Models;
+
+            // Устанавливаем флаги для отображения
+            foreach (var message in messages)
+            {
+                message.IsCurrentUser = message.SenderId == userId;
+                message.SenderName = message.IsCurrentUser ? "You" : "Other";
+            }
+
+            return messages;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting messages: {ex}");
+            return new List<Message>();
+        }
     }
 
     public async Task<List<Guid>> GetChatParticipants(Guid chatId)

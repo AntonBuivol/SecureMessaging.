@@ -1,4 +1,6 @@
+﻿using SecureMessaging.Models;
 using SecureMessaging.ViewModels;
+using System.Diagnostics;
 
 namespace SecureMessaging.Views;
 
@@ -10,23 +12,28 @@ public partial class ChatPage : ContentPage
         BindingContext = viewModel;
     }
 
-    protected override void OnNavigatedTo(NavigatedToEventArgs args)
+    protected override async void OnAppearing()
     {
-        base.OnNavigatedTo(args);
+        base.OnAppearing();
 
-        if (BindingContext is ChatViewModel viewModel)
+        if (BindingContext is ChatViewModel vm)
         {
-            if (Shell.Current.CurrentState.Location.OriginalString.Contains("ChatPage"))
-            {
-                var parameters = Shell.Current.CurrentState.Location.OriginalString
-                    .Split('?')[1]
-                    .Split('&')
-                    .ToDictionary(
-                        c => c.Split('=')[0],
-                        c => (object)Uri.UnescapeDataString(c.Split('=')[1]));
+            Debug.WriteLine($"ChatPage appearing - ChatId: {vm.Chat?.Id}");
 
-                viewModel.ApplyQueryAttributes(parameters);
-                viewModel.LoadMessagesCommand.ExecuteAsync(null);
+            if (vm.Chat == null)
+            {
+                Debug.WriteLine("Chat is null - going back");
+                await Shell.Current.GoToAsync("..");
+                return;
+            }
+
+            try
+            {
+                await vm.LoadMessagesCommand.ExecuteAsync(null);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading messages: {ex}");
             }
         }
     }

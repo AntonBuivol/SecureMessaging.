@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using SecureMessaging.Models;
 using SecureMessaging.Services;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Web;
 
 namespace SecureMessaging.ViewModels;
@@ -14,7 +15,10 @@ public partial class ChatViewModel : ObservableObject
     private readonly AuthService _authService;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Title))]
     private Chat _chat;
+
+    public string Title => Chat?.DisplayName ?? "Chat";
 
     [ObservableProperty]
     private string _messageText;
@@ -38,41 +42,81 @@ public partial class ChatViewModel : ObservableObject
 
     public void ApplyQueryAttributes(IDictionary<string, object> query)
     {
-        if (query.TryGetValue("Chat", out object chatObj) && chatObj is Chat chat)
+        try
         {
-            Chat = chat;
-            OnPropertyChanged(nameof(Chat));
+            if (query != null && query.TryGetValue("Chat", out var chatObj))
+            {
+                if (chatObj is Chat chat)
+                {
+                    Chat = chat;
+                    OnPropertyChanged(nameof(Chat));
+                }
+            }
         }
-        else if (query.TryGetValue("Chat", out object chatJson) && chatJson is string json)
+        catch (Exception ex)
         {
-            // If the chat was passed as JSON string (alternative approach)
-            Chat = System.Text.Json.JsonSerializer.Deserialize<Chat>(HttpUtility.UrlDecode(json));
-            OnPropertyChanged(nameof(Chat));
+            Debug.WriteLine($"Error applying query: {ex}");
         }
     }
 
     [RelayCommand]
     private async Task LoadMessages()
     {
-        var messages = await _chatService.GetChatMessages(Chat.Id, _authService.GetCurrentUserId());
+        if (Chat?.Id == null) return;
 
-        Messages.Clear();
-        foreach (var message in messages)
+        try
         {
-            Messages.Insert(0, message);
+            var messages = await _chatService.GetChatMessages(Chat.Id, _authService.GetCurrentUserId());
+            Messages.Clear();
+            foreach (var msg in messages.OrderBy(m => m.CreatedAt))
+            {
+                Messages.Add(msg);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error loading messages: {ex}");
         }
     }
 
     [RelayCommand]
     private async Task SendMessage()
     {
-        if (string.IsNullOrWhiteSpace(MessageText))
-        {
-            return;
-        }
+        if (string.IsNullOrWhiteSpace(MessageText)) return;
 
-        await _signalRService.SendMessage(Chat.Id, MessageText);
-        MessageText = string.Empty;
+        try
+        {
+            var currentUserId = _authService.GetCurrentUserId();
+            Debug.WriteLine($"Sending message - ChatId: {Chat?.Id}, UserId: {currentUserId}");
+
+            if (Chat?.Id == null || currentUserId == Guid.Empty)
+            {
+                Debug.WriteLine("Validation failed - Chat or User not loaded");
+                await Shell.Current.DisplayAlert("Error",
+                    Chat?.Id == null ? "Chat not loaded" : "User not authenticated",
+                    "OK");
+                return;
+            }
+
+            var message = new Message
+            {
+                ChatId = Chat.Id,
+                SenderId = currentUserId,
+                Content = MessageText,
+                CreatedAt = DateTime.UtcNow,
+                IsCurrentUser = true,
+                SenderName = "You"
+            };
+
+            await _signalRService.SendMessage(Chat.Id, MessageText);
+            Messages.Insert(0, message);
+            MessageText = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error sending message: {ex}");
+            await Shell.Current.DisplayAlert("Error", ex.Message, "OK");
+        }
     }
 
     private void OnMessageReceived(Message message)

@@ -2,23 +2,23 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="SecureMessaging.Views.ChatPage"
-             Title="{Binding Chat.DisplayName}">
+             Title="{Binding Title}">
 
     <Grid RowDefinitions="*,Auto">
         <CollectionView ItemsSource="{Binding Messages}"
-                        VerticalOptions="FillAndExpand">
+              VerticalOptions="FillAndExpand">
             <CollectionView.ItemTemplate>
                 <DataTemplate>
                     <Grid Padding="10">
                         <Frame BackgroundColor="{Binding IsCurrentUser, Converter={StaticResource MessageColorConverter}}"
-                               Padding="10"
-                               HorizontalOptions="{Binding IsCurrentUser, Converter={StaticResource MessageAlignmentConverter}}">
+                     Padding="10"
+                     HorizontalOptions="{Binding IsCurrentUser, Converter={StaticResource MessageAlignmentConverter}}">
                             <VerticalStackLayout>
                                 <Label Text="{Binding SenderName}"
-                                       FontSize="12"
-                                       TextColor="Gray"/>
+                             FontSize="12"
+                             TextColor="Gray"/>
                                 <Label Text="{Binding Content}"
-                                       FontSize="16"/>
+                             FontSize="16"/>
                             </VerticalStackLayout>
                         </Frame>
                     </Grid>

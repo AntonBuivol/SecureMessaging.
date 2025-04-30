@@ -40,10 +40,10 @@
 
             <!-- Chats List - теперь в третьей строке -->
             <CollectionView Grid.Row="2"
-                          ItemsSource="{Binding Chats}"
-                          SelectionMode="Single"
-                          SelectionChangedCommand="{Binding NavigateToChatCommand}"
-                          SelectionChangedCommandParameter="{Binding SelectedItem, Source={RelativeSource Self}}">
+              ItemsSource="{Binding Chats}"
+              SelectionMode="Single"
+              SelectionChangedCommand="{Binding NavigateToChatCommand}"
+              SelectionChangedCommandParameter="{Binding SelectedItem, Source={RelativeSource Self}}">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
                         <Grid Padding="15,10">

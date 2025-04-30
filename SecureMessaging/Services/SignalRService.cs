@@ -31,10 +31,17 @@ public class SignalRService
                 options.AccessTokenProvider = async () =>
                 {
                     var token = await SecureStorage.GetAsync("auth_token");
+                    if (string.IsNullOrEmpty(token))
+                    {
+                        Debug.WriteLine("No token found in SecureStorage");
+                        return null;
+                    }
+
+                    Debug.WriteLine($"Using token with length: {token.Length}");
                     return token;
                 };
-                // ... rest of your configuration
             })
+            .WithAutomaticReconnect(new RetryPolicy())
             .Build();
 
         // Setup your message handlers
@@ -72,15 +79,42 @@ public class SignalRService
 
     public async Task SendMessage(Guid chatId, string content)
     {
-        if (_hubConnection?.State == HubConnectionState.Connected)
+        try
         {
-            await _hubConnection.InvokeAsync("SendMessage", chatId, content);
+            if (_hubConnection?.State == HubConnectionState.Connected)
+            {
+                Debug.WriteLine($"Sending message to chat: {chatId}, content: {content}");
+                await _hubConnection.InvokeAsync("SendMessage", chatId, content);
+            }
+            else
+            {
+                Debug.WriteLine("SignalR connection not established");
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"SignalR send error: {ex}");
+            throw;
         }
     }
 
-    // В SignalRService.cs
     public async Task StartPrivateChat(Guid currentUserId, Guid otherUserId)
     {
-        await _hubConnection.InvokeAsync("StartPrivateChat", otherUserId); // Передаём только otherUserId
+        if (_hubConnection?.State == HubConnectionState.Connected)
+        {
+            try
+            {
+                await _hubConnection.InvokeAsync("StartPrivateChat", otherUserId);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error starting private chat: {ex}");
+                throw;
+            }
+        }
+        else
+        {
+            throw new Exception("SignalR connection is not established");
+        }
     }
 }

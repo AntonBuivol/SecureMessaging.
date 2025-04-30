@@ -1,4 +1,5 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+﻿using System.Diagnostics;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -192,25 +193,34 @@ public class AuthService
     {
         try
         {
-            var token = SecureStorage.GetAsync(AuthTokenKey).Result;
+            var token = SecureStorage.GetAsync(AuthTokenKey).GetAwaiter().GetResult();
             if (string.IsNullOrEmpty(token))
             {
+                Debug.WriteLine("Token is empty");
                 return Guid.Empty;
             }
 
             var handler = new JwtSecurityTokenHandler();
             var jwtToken = handler.ReadJwtToken(token);
-            var userIdClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+            // Проверяем все возможные варианты claim'ов
+            var userIdClaim = jwtToken.Claims.FirstOrDefault(c =>
+                c.Type == ClaimTypes.NameIdentifier ||
+                c.Type == JwtRegisteredClaimNames.Sub ||
+                c.Type == "nameid")?.Value;
 
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             {
+                Debug.WriteLine($"Invalid user ID in token. Claims: {string.Join(", ", jwtToken.Claims.Select(c => $"{c.Type}={c.Value}"))}");
                 return Guid.Empty;
             }
 
+            Debug.WriteLine($"Current user ID: {userId}");
             return userId;
         }
-        catch
+        catch (Exception ex)
         {
+            Debug.WriteLine($"Error getting user ID: {ex}");
             return Guid.Empty;
         }
     }

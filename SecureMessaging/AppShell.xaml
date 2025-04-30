@@ -31,8 +31,8 @@
                   FlyoutItemIsVisible="False"/>
 
     <ShellContent Route="ChatPage" 
-                  ContentTemplate="{DataTemplate views:ChatPage}"
-                  FlyoutItemIsVisible="False"/>
+              ContentTemplate="{DataTemplate views:ChatPage}"
+              FlyoutItemIsVisible="False"/>
 
     <FlyoutItem Title="Chats" Icon="chat.png">
         <ShellContent Route="MainPage" 

@@ -103,8 +103,10 @@ public class AuthService
         {
             Subject = new ClaimsIdentity(new[]
             {
-            new Claim(ClaimTypes.NameIdentifier, userId.ToString("D")),
-            new Claim("id", userId.ToString("D"))
+            new Claim("nameid", userId.ToString()), // Основной claim
+            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         }),
             Expires = DateTime.UtcNow.AddDays(7),
             SigningCredentials = new SigningCredentials(

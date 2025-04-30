@@ -15,9 +15,6 @@ public class Message : BaseModel
     [Column("sender_id")]
     public Guid SenderId { get; set; }
 
-    // Клиентское свойство (не из БД)
-    public string SenderName { get; set; }
-
     [Column("content")]
     public string Content { get; set; }
 
@@ -26,4 +23,5 @@ public class Message : BaseModel
 
     // Клиентское свойство (не из БД)
     public bool IsCurrentUser { get; set; }
+    public string SenderName { get; set; }
 }
