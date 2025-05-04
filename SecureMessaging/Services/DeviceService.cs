@@ -2,6 +2,7 @@
 using Supabase.Postgrest;
 using Supabase;
 using Device = SecureMessaging.Models.Device;
+using static Supabase.Postgrest.Constants;
 
 namespace SecureMessaging.Services;
 
@@ -17,9 +18,9 @@ public class DeviceService
     public async Task<List<Device>> GetUserDevices(Guid userId)
     {
         var response = await _supabase.From<Device>()
-            .Filter("user_id", Supabase.Postgrest.Constants.Operator.Equals, userId)
-            .Order("is_current", Supabase.Postgrest.Constants.Ordering.Descending)
-            .Order("is_primary", Supabase.Postgrest.Constants.Ordering.Descending)
+            .Filter("user_id", Operator.Equals, userId.ToString())
+            .Order("is_current", Ordering.Descending)
+            .Order("is_primary", Ordering.Descending)
             .Get();
 
         return response.Models;

@@ -66,8 +66,16 @@ public static class MauiProgram
         builder.Services.AddTransient<RegisterPage>();
         builder.Services.AddTransient<MainPage>();
         builder.Services.AddTransient<ChatPage>();
-        builder.Services.AddTransient<ProfileSettingsPage>();
-        builder.Services.AddTransient<AppSettingsPage>();
+        builder.Services.AddTransient<AppSettingsViewModel>(provider =>
+    new AppSettingsViewModel(
+        provider.GetRequiredService<DeviceService>(),
+        provider.GetRequiredService<UserService>(),
+        provider.GetRequiredService<AuthService>()));
+
+        builder.Services.AddTransient<ProfileSettingsViewModel>(provider =>
+            new ProfileSettingsViewModel(
+                provider.GetRequiredService<UserService>(),
+                provider.GetRequiredService<AuthService>()));
 
         builder.Services.AddSingleton<InverseBoolConverter>();
         builder.Services.AddSingleton<DateTimeToTimeConverter>();

@@ -1,6 +1,7 @@
 ﻿using SecureMessaging.Models;
 using Supabase;
 using Supabase.Postgrest;
+using static Supabase.Postgrest.Constants;
 
 namespace SecureMessaging.Services;
 
@@ -15,9 +16,8 @@ public class UserService
 
     public async Task<User> GetUser(Guid userId)
     {
-        return await _supabase
-            .From<User>()
-            .Filter("id", Supabase.Postgrest.Constants.Operator.Equals, userId)
+        return await _supabase.From<User>()
+            .Filter("id", Operator.Equals, userId.ToString())
             .Single();
     }
 
