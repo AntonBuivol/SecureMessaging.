@@ -117,4 +117,18 @@ public class AuthService
         var token = tokenHandler.CreateToken(tokenDescriptor);
         return tokenHandler.WriteToken(token);
     }
+
+    public Guid GetCurrentUserId(ClaimsPrincipal user)
+    {
+        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                       ?? user.FindFirst("nameid")?.Value
+                       ?? user.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+        if (Guid.TryParse(userIdClaim, out var userId))
+        {
+            return userId;
+        }
+
+        throw new UnauthorizedAccessException("Invalid user ID in token");
+    }
 }

@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Maui;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
+using SecureMessaging.Converters;
 using SecureMessaging.Services;
 using SecureMessaging.ViewModels;
 using SecureMessaging.Views;
@@ -29,7 +30,7 @@ public static class MauiProgram
         var supabaseUrl = "https://hgmogmeywxfdrggfdfzl.supabase.co";
         var supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhnbW9nbWV5d3hmZHJnZ2ZkZnpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMyNjMyNDMsImV4cCI6MjA1ODgzOTI0M30.75mo-uchFP1Mf9RzC-2Jn-De73Rn-agxpcofhSp2DWo";
         var jwtKey = "D3kGdmfJBfNJepC0J37w7Wa6HtmEAVFJVXIFEhXXr0BRlCFB8hREAFi4lhjapOU44+rdyv6ZtcneOiU4sQzVew==";
-        var signalRHubUrl = "https://0751-94-246-253-157.ngrok-free.app/chatHub";
+        var signalRHubUrl = "https://f29f-145-14-21-133.ngrok-free.app/chatHub";
 
         var supabaseOptions = new SupabaseOptions
         {
@@ -67,6 +68,9 @@ public static class MauiProgram
         builder.Services.AddTransient<ChatPage>();
         builder.Services.AddTransient<ProfileSettingsPage>();
         builder.Services.AddTransient<AppSettingsPage>();
+
+        builder.Services.AddSingleton<InverseBoolConverter>();
+        builder.Services.AddSingleton<DateTimeToTimeConverter>();
 
         builder.UseMauiApp<App>().UseMauiCommunityToolkit();
 

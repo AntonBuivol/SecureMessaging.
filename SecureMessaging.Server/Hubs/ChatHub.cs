@@ -11,13 +11,21 @@ public class ChatHub : Hub
 {
     private readonly ChatService _chatService;
     private readonly UserService _userService;
+    private readonly AuthService _authService;
     private readonly ILogger<ChatHub> _logger;
 
-    public ChatHub(ChatService chatService, UserService userService, ILogger<ChatHub> logger)
+    public ChatHub(ChatService chatService, UserService userService, AuthService authService, ILogger<ChatHub> logger)
     {
         _chatService = chatService;
         _userService = userService;
+        _authService = authService;
         _logger = logger;
+    }
+
+    public async Task<List<Message>> GetChatMessages(Guid chatId)
+    {
+        var userId = _authService.GetCurrentUserId(Context.User);
+        return await _chatService.GetChatMessages(chatId, userId);
     }
 
     public override async Task OnConnectedAsync()

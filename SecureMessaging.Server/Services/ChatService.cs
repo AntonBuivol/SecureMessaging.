@@ -143,32 +143,44 @@ public class ChatService
     {
         try
         {
-            var response = await _supabase.Rpc<dynamic>("get_chat_messages_with_senders",
-                new Dictionary<string, object>
-                {
-                { "chat_id_param", chatId },
-                { "current_user_id_param", currentUserId }
-                });
+            // Преобразуем Guid в строку для фильтрации
+            var response = await _supabase
+                .From<DataMessage>()
+                .Filter("chat_id", Operator.Equals, chatId.ToString())
+                .Order("created_at", Ordering.Ascending)
+                .Get();
 
-            if (response == null)
-                return new List<Message>();
+            var messages = new List<Message>();
+            var userIds = response.Models.Select(m => m.SenderId).Distinct().ToList();
 
-            var result = JObject.Parse(response.ToString());
+            // Получаем информацию о пользователях
+            var usersResponse = await _supabase
+                .From<User>()
+                .Filter("id", Operator.In, userIds.Select(u => u.ToString()).ToList())
+                .Get();
 
-            if (result["error"] != null)
+            var userDict = usersResponse.Models.ToDictionary(u => u.Id, u => u);
+
+            foreach (var msg in response.Models)
             {
-                Console.WriteLine($"Chat error: {result["error"]}");
-                return new List<Message>();
+                var user = userDict.GetValueOrDefault(msg.SenderId);
+                messages.Add(new Message
+                {
+                    Id = msg.Id,
+                    ChatId = msg.ChatId,
+                    SenderId = msg.SenderId,
+                    Content = msg.Content,
+                    CreatedAt = msg.CreatedAt,
+                    IsCurrentUser = msg.SenderId == currentUserId,
+                    SenderName = msg.SenderId == currentUserId ? "You" : user?.DisplayName ?? user?.Username ?? "Unknown"
+                });
             }
 
-            var messagesJson = result["messages"]?.ToString() ?? "[]";
-            var messages = JsonConvert.DeserializeObject<List<Message>>(messagesJson);
-
-            return messages ?? new List<Message>();
+            return messages;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error getting messages: {ex}");
+            Console.WriteLine($"GetChatMessages error: {ex}");
             return new List<Message>();
         }
     }

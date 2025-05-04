@@ -1,76 +1,89 @@
-<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:converters="clr-namespace:SecureMessaging.Converters"
+             xmlns:models="clr-namespace:SecureMessaging.Models"
              x:Class="SecureMessaging.Views.ChatPage"
              Title="{Binding Title}">
 
     <ContentPage.Resources>
-        <converters:MessageColorConverter x:Key="MessageColorConverter" />
-        <converters:MessageTextColorConverter x:Key="MessageTextColorConverter" />
-        <converters:MessageAlignmentConverter x:Key="MessageAlignmentConverter" />
-        <converters:MessageColumnConverter x:Key="MessageColumnConverter" />
+        <converters:InverseBoolConverter x:Key="InverseBool" />
+        <Style x:Key="CurrentUserMessageStyle" TargetType="Frame">
+            <Setter Property="HorizontalOptions" Value="End" />
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Secondary}}" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+
+        <Style x:Key="OtherUserMessageStyle" TargetType="Frame">
+            <Setter Property="HorizontalOptions" Value="Start" />
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=LightGray, Dark=DarkGray}" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
     </ContentPage.Resources>
 
     <Grid RowDefinitions="*,Auto">
-        <CollectionView x:Name="MessagesView"
-               ItemsSource="{Binding Messages}"
-               VerticalOptions="FillAndExpand"
-               SelectionMode="None"
-               Margin="10,0">
-            <CollectionView.ItemsLayout>
-                <LinearItemsLayout Orientation="Vertical" ItemSpacing="10" />
-            </CollectionView.ItemsLayout>
+        <!-- Messages List -->
+        <CollectionView Grid.Row="0" ItemsSource="{Binding Messages}">
             <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <Grid Padding="10,5" ColumnDefinitions="*,*">
-                        <!-- Сообщения других пользователей (слева) -->
-                        <Frame Grid.Column="{Binding IsCurrentUser, Converter={StaticResource MessageColumnConverter}}"
-                           BackgroundColor="{Binding IsCurrentUser, Converter={StaticResource MessageColorConverter}}"
-                           Padding="10"
-                           CornerRadius="10"
-                           HorizontalOptions="{Binding IsCurrentUser, Converter={StaticResource MessageAlignmentConverter}}"
-                           HasShadow="False">
-                            <VerticalStackLayout>
-                                <!-- Имя отправителя (только для чужих сообщений) -->
-                                <Label Text="{Binding SenderName}"
+                <DataTemplate x:DataType="models:Message">
+                    <Grid Padding="10,5">
+                        <!-- Current User Message Template -->
+                        <VerticalStackLayout 
+                            HorizontalOptions="End"
+                            Spacing="4"
+                            IsVisible="{Binding IsCurrentUser}">
+
+                            <Frame Style="{StaticResource CurrentUserMessageStyle}">
+                                <Label Text="{Binding Content}" 
+                                       TextColor="{AppThemeBinding Light=White, Dark=Black}" />
+                            </Frame>
+
+                            <HorizontalStackLayout Spacing="6" HorizontalOptions="End">
+                                <Label Text="{Binding LocalCreatedAt, StringFormat='{0:HH:mm}'}"
+                                       FontSize="12"
+                                       TextColor="{AppThemeBinding Light=Gray, Dark=LightGray}" />
+                                <Label Text="You"
+                                       FontSize="12"
+                                       FontAttributes="Bold"
+                                       TextColor="{AppThemeBinding Light=Gray, Dark=LightGray}" />
+                            </HorizontalStackLayout>
+                        </VerticalStackLayout>
+
+                        <!-- Other User Message Template -->
+                        <VerticalStackLayout 
+                            HorizontalOptions="Start"
+                            Spacing="4"
+                            IsVisible="{Binding IsCurrentUser, Converter={StaticResource InverseBool}}">
+
+                            <Label Text="{Binding SenderName}"
                                    FontSize="12"
                                    FontAttributes="Bold"
-                                   TextColor="{Binding IsCurrentUser, Converter={StaticResource MessageTextColorConverter}}"/>
+                                   TextColor="{AppThemeBinding Light=Black, Dark=White}" />
 
-                                <!-- Текст сообщения -->
-                                <Label Text="{Binding Content}"
-                                   FontSize="16"
-                                   TextColor="{Binding IsCurrentUser, Converter={StaticResource MessageTextColorConverter}}"/>
+                            <Frame Style="{StaticResource OtherUserMessageStyle}">
+                                <Label Text="{Binding Content}" 
+                                       TextColor="{AppThemeBinding Light=Black, Dark=White}" />
+                            </Frame>
 
-                                <!-- Время сообщения -->
-                                <Label Text="{Binding CreatedAt, StringFormat='{0:HH:mm}'}"
-                                   FontSize="10"
-                                   HorizontalOptions="End"
-                                   TextColor="{Binding IsCurrentUser, Converter={StaticResource MessageTextColorConverter}}"/>
-                            </VerticalStackLayout>
-                        </Frame>
+                            <Label Text="{Binding LocalCreatedAt, StringFormat='{0:HH:mm}'}"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light=Gray, Dark=LightGray}" />
+                        </VerticalStackLayout>
                     </Grid>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
 
-        <!-- Панель ввода сообщения -->
-        <Grid Grid.Row="1" 
-              Padding="10"
-              ColumnDefinitions="*,Auto"
-              BackgroundColor="White">
-            <Entry Text="{Binding MessageText}"
+        <!-- Message Input -->
+        <Grid Grid.Row="1" Padding="10" ColumnDefinitions="*,Auto">
+            <Entry Grid.Column="0" 
+                   Text="{Binding MessageText}" 
                    Placeholder="Type a message..."
-                   ReturnCommand="{Binding SendMessageCommand}"
-                   Grid.Column="0"/>
-            <Button Text="Send"
-                    Command="{Binding SendMessageCommand}"
-                    Grid.Column="1"
-                    BackgroundColor="#5C9DFF"
-                    TextColor="White"
-                    CornerRadius="5"
-                    Margin="5,0,0,0"/>
+                   ReturnCommand="{Binding SendMessageCommand}"/>
+            <Button Grid.Column="1" 
+                    Text="Send" 
+                    Command="{Binding SendMessageCommand}"/>
         </Grid>
     </Grid>
 </ContentPage>

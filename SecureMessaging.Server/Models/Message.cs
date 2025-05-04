@@ -11,4 +11,5 @@ public class Message
     // Клиентские свойства
     public bool IsCurrentUser { get; set; }
     public string SenderName { get; set; }
+    public DateTime LocalCreatedAt => CreatedAt.ToLocalTime();
 }

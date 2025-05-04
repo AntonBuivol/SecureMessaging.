@@ -141,12 +141,36 @@ public partial class ChatViewModel : ObservableObject
     [RelayCommand]
     private async Task LoadMessages()
     {
-        if (Chat?.Id == null) return;
+        if (Chat?.Id == null)
+        {
+            Debug.WriteLine("Chat ID is null");
+            return;
+        }
 
         try
         {
+            Debug.WriteLine($"Loading messages for chat {Chat.Id}...");
             var currentUserId = _authService.GetCurrentUserId();
-            var messages = await _chatService.GetChatMessages(Chat.Id, currentUserId);
+
+            if (currentUserId == Guid.Empty)
+            {
+                Debug.WriteLine("Current user ID is empty");
+                return;
+            }
+
+            var messages = await _signalRService.GetChatMessages(Chat.Id);
+
+            if (messages == null)
+            {
+                Debug.WriteLine("Received null messages list");
+                return;
+            }
+
+            Debug.WriteLine($"Received {messages.Count} messages:");
+            foreach (var msg in messages)
+            {
+                Debug.WriteLine($"Msg: {msg.Content} | Sender: {msg.SenderId} | At: {msg.CreatedAt} | Current: {msg.IsCurrentUser} | Name: {msg.SenderName}");
+            }
 
             MainThread.BeginInvokeOnMainThread(() =>
             {
@@ -155,11 +179,12 @@ public partial class ChatViewModel : ObservableObject
                 {
                     Messages.Add(msg);
                 }
+                Debug.WriteLine($"Now showing {Messages.Count} messages");
             });
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Error loading messages: {ex}");
+            Debug.WriteLine($"LoadMessages error: {ex}");
             await Shell.Current.DisplayAlert("Error", "Failed to load messages", "OK");
         }
     }
