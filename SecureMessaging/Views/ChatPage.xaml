@@ -7,19 +7,6 @@
 
     <ContentPage.Resources>
         <converters:InverseBoolConverter x:Key="InverseBool" />
-        <Style x:Key="CurrentUserMessageStyle" TargetType="Frame">
-            <Setter Property="HorizontalOptions" Value="End" />
-            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Secondary}}" />
-            <Setter Property="Padding" Value="12" />
-            <Setter Property="CornerRadius" Value="10" />
-        </Style>
-
-        <Style x:Key="OtherUserMessageStyle" TargetType="Frame">
-            <Setter Property="HorizontalOptions" Value="Start" />
-            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=LightGray, Dark=DarkGray}" />
-            <Setter Property="Padding" Value="12" />
-            <Setter Property="CornerRadius" Value="10" />
-        </Style>
     </ContentPage.Resources>
 
     <Grid RowDefinitions="*,Auto">
@@ -28,19 +15,21 @@
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="models:Message">
                     <Grid Padding="10,5">
-                        <!-- Current User Message Template -->
+                        <!-- Current User Message (Right Side) -->
                         <VerticalStackLayout 
                             HorizontalOptions="End"
                             Spacing="4"
                             IsVisible="{Binding IsCurrentUser}">
 
-                            <Frame Style="{StaticResource CurrentUserMessageStyle}">
+                            <Frame Padding="12"
+                                   CornerRadius="10"
+                                   BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Secondary}}">
                                 <Label Text="{Binding Content}" 
                                        TextColor="{AppThemeBinding Light=White, Dark=Black}" />
                             </Frame>
 
                             <HorizontalStackLayout Spacing="6" HorizontalOptions="End">
-                                <Label Text="{Binding LocalCreatedAt, StringFormat='{0:HH:mm}'}"
+                                <Label Text="{Binding DisplayTime}"
                                        FontSize="12"
                                        TextColor="{AppThemeBinding Light=Gray, Dark=LightGray}" />
                                 <Label Text="You"
@@ -50,7 +39,7 @@
                             </HorizontalStackLayout>
                         </VerticalStackLayout>
 
-                        <!-- Other User Message Template -->
+                        <!-- Other User Message (Left Side) -->
                         <VerticalStackLayout 
                             HorizontalOptions="Start"
                             Spacing="4"
@@ -61,12 +50,14 @@
                                    FontAttributes="Bold"
                                    TextColor="{AppThemeBinding Light=Black, Dark=White}" />
 
-                            <Frame Style="{StaticResource OtherUserMessageStyle}">
+                            <Frame Padding="12"
+                                   CornerRadius="10"
+                                   BackgroundColor="{AppThemeBinding Light=LightGray, Dark=DarkGray}">
                                 <Label Text="{Binding Content}" 
                                        TextColor="{AppThemeBinding Light=Black, Dark=White}" />
                             </Frame>
 
-                            <Label Text="{Binding LocalCreatedAt, StringFormat='{0:HH:mm}'}"
+                            <Label Text="{Binding DisplayTime}"
                                    FontSize="12"
                                    TextColor="{AppThemeBinding Light=Gray, Dark=LightGray}" />
                         </VerticalStackLayout>

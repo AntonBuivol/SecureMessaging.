@@ -24,4 +24,5 @@ public class Message : BaseModel
     // Клиентское свойство (не из БД)
     public bool IsCurrentUser { get; set; }
     public string SenderName { get; set; }
+    public string DisplayTime => CreatedAt.ToString("HH:mm");
 }
