@@ -4,6 +4,7 @@ using Microsoft.Maui.Controls;
 using SecureMessaging.Models;
 using SecureMessaging.Services;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using Device = SecureMessaging.Models.Device;
 
 namespace SecureMessaging.ViewModels;
@@ -80,8 +81,21 @@ public partial class AppSettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task ToggleRestrictions()
     {
-        var userId = _authService.GetCurrentUserId();
-        await _userService.ToggleRestrictions(userId, IsRestricted);
+        try
+        {
+            var userId = _authService.GetCurrentUserId();
+            if (userId == Guid.Empty) return;
+
+            await _userService.ToggleRestrictions(userId, IsRestricted);
+
+            // Показываем сообщение об успехе
+            await Shell.Current.DisplayAlert("Success", "Security settings updated", "OK");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error toggling restrictions: {ex}");
+            await Shell.Current.DisplayAlert("Error", "Failed to update security settings", "OK");
+        }
     }
 
     [RelayCommand]

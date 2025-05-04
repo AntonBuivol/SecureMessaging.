@@ -1,6 +1,7 @@
 ﻿using SecureMessaging.Models;
 using Supabase;
 using Supabase.Postgrest;
+using System.Diagnostics;
 using static Supabase.Postgrest.Constants;
 
 namespace SecureMessaging.Services;
@@ -53,15 +54,26 @@ public class UserService
 
     public async Task ToggleRestrictions(Guid userId, bool isRestricted)
     {
-        var user = await _supabase
-            .From<User>()
-            .Filter("id", Supabase.Postgrest.Constants.Operator.Equals, userId)
-            .Single();
-
-        if (user != null)
+        try
         {
-            user.IsRestricted = isRestricted;
-            await _supabase.From<User>().Update(user);
+            // Получаем пользователя
+            var response = await _supabase.From<User>()
+                .Filter("id", Operator.Equals, userId.ToString())
+                .Single();
+
+            if (response != null)
+            {
+                // Обновляем только нужное поле
+                await _supabase.From<User>()
+                    .Filter("id", Operator.Equals, userId.ToString())
+                    .Set(x => x.IsRestricted, isRestricted)
+                    .Update();
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error toggling restrictions: {ex}");
+            throw;
         }
     }
 }
