@@ -35,7 +35,7 @@ public class DeviceService
             UserId = userId,
             DeviceName = deviceName,
             DeviceInfo = deviceInfo,
-            IsPrimary = isPrimary,
+            IsPrimary = isPrimary,  // This will be false for login-created devices
             IsCurrent = isCurrent,
             CreatedAt = DateTime.UtcNow,
             LastActive = DateTime.UtcNow

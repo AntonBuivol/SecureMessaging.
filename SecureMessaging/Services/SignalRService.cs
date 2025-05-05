@@ -31,30 +31,23 @@ public class SignalRService
                 options.AccessTokenProvider = async () =>
                 {
                     var token = await SecureStorage.GetAsync("auth_token");
-                    if (string.IsNullOrEmpty(token))
-                    {
-                        Debug.WriteLine("No token found in SecureStorage");
-                        return null;
-                    }
-
-                    Debug.WriteLine($"Using token with length: {token.Length}");
                     return token;
                 };
             })
             .WithAutomaticReconnect(new RetryPolicy())
             .Build();
 
-        // Setup your message handlers
         _hubConnection.On<Message>("ReceiveMessage", message => MessageReceived?.Invoke(message));
         _hubConnection.On<Chat>("ChatStarted", chat => ChatStarted?.Invoke(chat));
 
         try
         {
             await _hubConnection.StartAsync();
+            Debug.WriteLine("SignalR connected successfully");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"SignalR Connection Error: {ex}");
+            Debug.WriteLine($"SignalR Connection Error: {ex}");
             throw;
         }
     }

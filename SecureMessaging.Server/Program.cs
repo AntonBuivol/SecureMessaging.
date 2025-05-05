@@ -11,7 +11,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", builder => builder
         .WithOrigins(
-            "https://f29f-145-14-21-133.ngrok-free.app"
+            "https://068b-145-14-21-133.ngrok-free.app"
         )
         .AllowAnyHeader()
         .AllowAnyMethod()

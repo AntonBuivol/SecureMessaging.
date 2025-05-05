@@ -25,28 +25,9 @@ public partial class App : Application
     {
         base.OnStart();
 
-        // Проверяем токен
         var token = await SecureStorage.GetAsync("auth_token");
-        Debug.WriteLine($"Token exists: {!string.IsNullOrEmpty(token)}");
 
         if (!string.IsNullOrEmpty(token))
-        {
-            try
-            {
-                var handler = new JwtSecurityTokenHandler();
-                var jwtToken = handler.ReadJwtToken(token);
-                Debug.WriteLine($"Token contents: {string.Join(", ", jwtToken.Claims.Select(c => $"{c.Type}={c.Value}"))}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Token validation error: {ex}");
-            }
-        }
-
-        var isLoggedIn = await _authService.IsUserLoggedIn();
-        Debug.WriteLine($"User is logged in: {isLoggedIn}");
-
-        if (isLoggedIn)
         {
             try
             {

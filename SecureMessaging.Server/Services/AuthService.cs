@@ -72,11 +72,12 @@ public class AuthService
             // Update last active and access token
             existingDevice.LastActive = DateTime.UtcNow;
             existingDevice.IsCurrent = true;
+            existingDevice.IsPrimary = false; // Ensure it's not primary
             await _supabase.From<Device>().Update(existingDevice);
         }
         else
         {
-            // Create new device
+            // Create new device - explicitly set IsPrimary to false
             await _deviceService.CreateDevice(user.Id, deviceName, deviceInfo, false, true);
         }
 

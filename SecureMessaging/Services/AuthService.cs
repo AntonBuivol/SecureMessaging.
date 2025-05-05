@@ -50,59 +50,10 @@ public class AuthService
         return tokenHandler.WriteToken(token);
     }
 
-    public async Task<(bool Success, string ErrorMessage)> Register(string username, string password, string displayName)
-    {
-        try
-        {
-            // Получаем информацию об устройстве
-            var deviceName = DeviceInfo.Name;
-            var deviceInfo = $"{DeviceInfo.Platform} {DeviceInfo.Version}";
-
-            // Проверка существующего пользователя
-            var existingUser = await _supabase.From<User>()
-                .Where(x => x.Username == username)
-                .Single();
-
-            if (existingUser != null)
-            {
-                return (false, "Username is already taken");
-            }
-
-            // Создание нового пользователя
-            var newUser = new User
-            {
-                Id = Guid.NewGuid(),
-                Username = username,
-                PasswordHash = HashPassword(password),
-                DisplayName = displayName,
-                CreatedAt = DateTime.UtcNow,
-                IsRestricted = false
-            };
-
-            var response = await _supabase.From<User>().Insert(newUser);
-            var createdUser = response.Models.First();
-
-            // Добавляем устройство
-            await AddDeviceForUser(createdUser.Id, deviceName, deviceInfo, isPrimary: true, isCurrent: true);
-
-            // Генерация JWT токена
-            var jwtToken = GenerateJwtToken(createdUser.Id);
-            await SecureStorage.SetAsync(AuthTokenKey, jwtToken);
-
-            return (true, string.Empty);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Registration error: {ex.Message}");
-            return (false, "Registration failed. Please try again.");
-        }
-    }
-
     public async Task<(bool Success, string ErrorMessage)> Login(string username, string password)
     {
         try
         {
-            // Получаем информацию об устройстве
             var deviceName = DeviceInfo.Name;
             var deviceInfo = $"{DeviceInfo.Platform} {DeviceInfo.Version}";
 
@@ -115,12 +66,14 @@ public class AuthService
                 return (false, "Invalid username or password");
             }
 
-            // Добавляем/обновляем устройство
             await AddDeviceForUser(user.Id, deviceName, deviceInfo, isPrimary: false, isCurrent: true);
 
-            // Генерация JWT токена
             var jwtToken = GenerateJwtToken(user.Id);
             await SecureStorage.SetAsync(AuthTokenKey, jwtToken);
+
+            // Добавляем ожидание подключения SignalR
+            var signalRService = MauiProgram.Services.GetService<SignalRService>();
+            await signalRService.Connect();
 
             return (true, string.Empty);
         }
@@ -128,6 +81,53 @@ public class AuthService
         {
             Console.WriteLine($"Login error: {ex.Message}");
             return (false, "Login failed. Please try again.");
+        }
+    }
+
+    public async Task<(bool Success, string ErrorMessage)> Register(string username, string password, string displayName)
+    {
+        try
+        {
+            var deviceName = DeviceInfo.Name;
+            var deviceInfo = $"{DeviceInfo.Platform} {DeviceInfo.Version}";
+
+            var existingUser = await _supabase.From<User>()
+                .Where(x => x.Username == username)
+                .Single();
+
+            if (existingUser != null)
+            {
+                return (false, "Username is already taken");
+            }
+
+            var newUser = new User
+            {
+                Id = Guid.NewGuid(),
+                Username = username,
+                PasswordHash = HashPassword(password),
+                DisplayName = displayName ?? username,
+                CreatedAt = DateTime.UtcNow,
+                IsRestricted = false
+            };
+
+            var response = await _supabase.From<User>().Insert(newUser);
+            var createdUser = response.Models.First();
+
+            await AddDeviceForUser(createdUser.Id, deviceName, deviceInfo, isPrimary: true, isCurrent: true);
+
+            var jwtToken = GenerateJwtToken(createdUser.Id);
+            await SecureStorage.SetAsync(AuthTokenKey, jwtToken);
+
+            // Добавляем ожидание подключения SignalR
+            var signalRService = MauiProgram.Services.GetService<SignalRService>();
+            await signalRService.Connect();
+
+            return (true, string.Empty);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Registration error: {ex.Message}");
+            return (false, "Registration failed. Please try again.");
         }
     }
 

@@ -59,6 +59,8 @@ public partial class RegisterViewModel : ObservableObject
 
         if (success)
         {
+            // Даем время на установку соединения
+            await Task.Delay(500);
             await Shell.Current.GoToAsync("//MainPage");
         }
         else
