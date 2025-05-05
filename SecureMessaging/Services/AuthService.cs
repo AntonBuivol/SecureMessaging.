@@ -3,6 +3,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Microsoft.IdentityModel.Tokens;
 using SecureMessaging.Models;
 using Supabase;
@@ -55,7 +56,8 @@ public class AuthService
         try
         {
             var deviceName = DeviceInfo.Name;
-            var deviceInfo = $"{DeviceInfo.Platform} {DeviceInfo.Version}";
+            var deviceInfo = $"{DeviceInfo.Platform} {DeviceInfo.Version} {DeviceInfo.Model}";
+
 
             var user = await _supabase.From<User>()
                 .Where(x => x.Username == username)
@@ -66,12 +68,50 @@ public class AuthService
                 return (false, "Invalid username or password");
             }
 
-            await AddDeviceForUser(user.Id, deviceName, deviceInfo, isPrimary: false, isCurrent: true);
+            // New approach - get all devices and filter locally
+            var allDevices = await _supabase.From<Device>()
+                .Where(x => x.UserId == user.Id)
+                .Get();
+
+            var existingDevice = allDevices.Models.FirstOrDefault(d =>
+                d.DeviceName == deviceName &&
+                d.DeviceInfo == deviceInfo);
+
+            if (existingDevice != null)
+            {
+                // Update only the current device
+                await _supabase.From<Device>()
+                    .Where(x => x.Id == existingDevice.Id)
+                    .Set(x => x.LastActive, DateTime.UtcNow)
+                    .Set(x => x.IsCurrent, true)
+                    .Update();
+            }
+            else
+            {
+                // First, set all devices as non-current
+                await _supabase.From<Device>()
+                    .Where(x => x.UserId == user.Id)
+                    .Set(x => x.IsCurrent, false)
+                    .Update();
+
+                // Create new device
+                var newDevice = new Device
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = user.Id,
+                    DeviceName = deviceName,
+                    DeviceInfo = deviceInfo,
+                    IsPrimary = false,
+                    IsCurrent = true,
+                    CreatedAt = DateTime.UtcNow,
+                    LastActive = DateTime.UtcNow
+                };
+                var response = await _supabase.From<Device>().Insert(newDevice);
+            }
 
             var jwtToken = GenerateJwtToken(user.Id);
             await SecureStorage.SetAsync(AuthTokenKey, jwtToken);
 
-            // Добавляем ожидание подключения SignalR
             var signalRService = MauiProgram.Services.GetService<SignalRService>();
             await signalRService.Connect();
 
@@ -79,7 +119,7 @@ public class AuthService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Login error: {ex.Message}");
+            Debug.WriteLine($"[ERROR] Login failed: {ex}");
             return (false, "Login failed. Please try again.");
         }
     }
@@ -133,21 +173,21 @@ public class AuthService
 
     private async Task AddDeviceForUser(Guid userId, string deviceName, string deviceInfo, bool isPrimary, bool isCurrent)
     {
-        // Проверяем, существует ли уже такое устройство
+        // Check if device already exists
         var existingDevice = await _supabase.From<Device>()
             .Where(x => x.UserId == userId && x.DeviceInfo == deviceInfo)
             .Single();
 
         if (existingDevice != null)
         {
-            // Обновляем существующее устройство
+            // Update existing device
             existingDevice.LastActive = DateTime.UtcNow;
             existingDevice.IsCurrent = isCurrent;
             await _supabase.From<Device>().Update(existingDevice);
         }
         else
         {
-            // Создаем новое устройство
+            // Create new device
             var newDevice = new Device
             {
                 Id = Guid.NewGuid(),
