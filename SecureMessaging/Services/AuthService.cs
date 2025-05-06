@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.SignalR.Client;
 using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace SecureMessaging.Services;
 
@@ -87,9 +89,8 @@ public class AuthService
         {
             await EnsureHubConnected(requireAuth: false);
 
-            // Get device info using MAUI APIs (client-side only)
             var deviceName = DeviceInfo.Name ?? "Unknown Device";
-            var deviceInfo = $"{DeviceInfo.Platform} {DeviceInfo.Version} {DeviceInfo.Model}" ?? "Unknown Info";
+            var deviceInfo = GenerateDeviceIdentifier();
 
             var token = await _hubConnection.InvokeAsync<string>(
                 "Login",
@@ -106,13 +107,23 @@ public class AuthService
             await SecureStorage.SetAsync(AuthTokenKey, token);
             return (true, string.Empty);
         }
-        catch (HubException hubEx)
-        {
-            return (false, hubEx.Message);
-        }
         catch (Exception ex)
         {
-            return (false, "Login failed. Please try again.");
+            return (false, ex.Message);
+        }
+    }
+
+    private string GenerateDeviceIdentifier()
+    {
+        try
+        {
+            // Create a simple but unique device identifier
+            return $"{DeviceInfo.Platform} {DeviceInfo.Version}";
+        }
+        catch
+        {
+            // Fallback to random GUID if device info isn't available
+            return Guid.NewGuid().ToString();
         }
     }
 

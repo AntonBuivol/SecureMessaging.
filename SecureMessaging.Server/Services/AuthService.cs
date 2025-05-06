@@ -64,24 +64,13 @@ public class AuthService
                 throw new Exception("Invalid credentials");
             }
 
-            // Ensure device info is not null
-            deviceName ??= "Unknown Device";
-            deviceInfo ??= "Unknown Platform";
-
-            try
-            {
-                await _deviceService.CreateDevice(
-                    user.Id,
-                    deviceName,
-                    deviceInfo,
-                    isPrimary: false,
-                    isCurrent: true);
-            }
-            catch (Exception deviceEx)
-            {
-                Console.WriteLine($"Non-critical device creation error: {deviceEx}");
-                // Continue with login anyway
-            }
+            // This will either find existing device or create new one
+            await _deviceService.GetOrCreateDevice(
+                user.Id,
+                deviceName ?? "Unknown Device",
+                deviceInfo ?? "Unknown Platform",
+                isPrimary: false,
+                isCurrent: true);
 
             return GenerateJwtToken(user.Id);
         }
