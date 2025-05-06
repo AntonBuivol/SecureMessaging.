@@ -1,5 +1,6 @@
 ﻿using SecureMessaging.Server.Models;
 using Supabase;
+using Supabase.Postgrest;
 
 namespace SecureMessaging.Server.Services;
 
@@ -9,39 +10,62 @@ public class DeviceService
 
     public DeviceService(Supabase.Client supabase)
     {
-        _supabase = supabase;
+        _supabase = supabase ?? throw new ArgumentNullException(nameof(supabase));
     }
 
     public async Task CreateDevice(Guid userId, string deviceName, string deviceInfo, bool isPrimary, bool isCurrent)
     {
-        // Reset current device flag for all other devices of this user
-        if (isCurrent)
+        try
         {
-            var currentDevices = await _supabase
-                .From<Device>()
-                .Where(x => x.UserId == userId && x.IsCurrent)
-                .Get();
-
-            foreach (var device in currentDevices.Models)
+            // Verify Supabase is initialized
+            if (_supabase == null)
             {
-                device.IsCurrent = false;
-                await _supabase.From<Device>().Update(device);
+                throw new Exception("Supabase client not initialized");
+            }
+
+            // Reset current device flag for all other devices of this user
+            if (isCurrent)
+            {
+                var currentDevices = await _supabase.From<Device>()
+                    .Where(x => x.UserId == userId && x.IsCurrent)
+                    .Get();
+
+                if (currentDevices.ResponseMessage?.IsSuccessStatusCode ?? false)
+                {
+                    foreach (var device in currentDevices.Models)
+                    {
+                        device.IsCurrent = false;
+                        await _supabase.From<Device>().Update(device);
+                    }
+                }
+            }
+
+            // Create new device
+            var newDevice = new Device
+            {
+                Id = Guid.NewGuid(), // Explicitly set ID
+                UserId = userId,
+                DeviceName = deviceName ?? "Unknown Device",
+                DeviceInfo = deviceInfo ?? "Unknown Info",
+                IsPrimary = isPrimary,
+                IsCurrent = isCurrent,
+                CreatedAt = DateTime.UtcNow,
+                LastActive = DateTime.UtcNow,
+                AccessToken = null // Explicitly set to null if not used
+            };
+
+            var response = await _supabase.From<Device>().Insert(newDevice);
+
+            if (!response.ResponseMessage.IsSuccessStatusCode)
+            {
+                throw new Exception($"Failed to create device: {response.ResponseMessage.ReasonPhrase}");
             }
         }
-
-        // Create new device
-        var newDevice = new Device
+        catch (Exception ex)
         {
-            UserId = userId,
-            DeviceName = deviceName,
-            DeviceInfo = deviceInfo,
-            IsPrimary = isPrimary,  // This will be false for login-created devices
-            IsCurrent = isCurrent,
-            CreatedAt = DateTime.UtcNow,
-            LastActive = DateTime.UtcNow
-        };
-
-        await _supabase.From<Device>().Insert(newDevice);
+            Console.WriteLine($"Error creating device: {ex}");
+            throw new Exception("Device creation failed", ex);
+        }
     }
 
     public async Task<List<Device>> GetUserDevices(Guid userId)

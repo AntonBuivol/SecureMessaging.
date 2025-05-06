@@ -53,35 +53,44 @@ public class AuthService
 
     public async Task<string> Login(string username, string password, string deviceName, string deviceInfo)
     {
-        var user = await _supabase.From<User>()
-            .Where(x => x.Username == username)
-            .Single();
-
-        if (user == null || !VerifyPassword(password, user.PasswordHash))
+        try
         {
-            throw new Exception("Invalid username or password");
+            var user = await _supabase.From<User>()
+                .Where(x => x.Username == username)
+                .Single();
+
+            if (user == null)
+            {
+                throw new Exception("User not found");
+            }
+
+            if (!VerifyPassword(password, user.PasswordHash))
+            {
+                throw new Exception("Invalid password");
+            }
+
+            try
+            {
+                // Try to create device - if fails, still allow login
+                await _deviceService.CreateDevice(
+                    user.Id,
+                    deviceName ?? "Unknown Device",
+                    deviceInfo ?? "Unknown Info",
+                    false,
+                    true);
+            }
+            catch (Exception deviceEx)
+            {
+                Console.WriteLine($"Device creation failed but continuing login: {deviceEx}");
+            }
+
+            return GenerateJwtToken(user.Id);
         }
-
-        // Check if device already exists
-        var existingDevice = await _supabase.From<Device>()
-            .Where(x => x.UserId == user.Id && x.DeviceInfo == deviceInfo)
-            .Single();
-
-        if (existingDevice != null)
+        catch (Exception ex)
         {
-            // Update last active and access token
-            existingDevice.LastActive = DateTime.UtcNow;
-            existingDevice.IsCurrent = true;
-            existingDevice.IsPrimary = false; // Ensure it's not primary
-            await _supabase.From<Device>().Update(existingDevice);
+            Console.WriteLine($"Login error: {ex}");
+            throw new Exception("Login failed. Please try again.");
         }
-        else
-        {
-            // Create new device - explicitly set IsPrimary to false
-            await _deviceService.CreateDevice(user.Id, deviceName, deviceInfo, false, true);
-        }
-
-        return GenerateJwtToken(user.Id);
     }
 
     private string HashPassword(string password)
@@ -104,11 +113,11 @@ public class AuthService
         {
             Subject = new ClaimsIdentity(new[]
             {
-            new Claim("nameid", userId.ToString()), // Основной claim
-            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-        }),
+                new Claim("nameid", userId.ToString()),
+                new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            }),
             Expires = DateTime.UtcNow.AddDays(7),
             SigningCredentials = new SigningCredentials(
                 new SymmetricSecurityKey(key),

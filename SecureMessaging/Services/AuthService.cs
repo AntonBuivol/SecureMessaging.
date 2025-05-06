@@ -1,126 +1,50 @@
-﻿using System.Diagnostics;
+﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR.Client;
+using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-using Microsoft.IdentityModel.Tokens;
-using SecureMessaging.Models;
-using Supabase;
-using Supabase.Postgrest;
-using Device = SecureMessaging.Models.Device;
 
 namespace SecureMessaging.Services;
 
 public class AuthService
 {
-    private readonly Supabase.Client _supabase;
-    private readonly string _jwtSecret;
+    private readonly string _hubUrl;
+    private HubConnection _hubConnection;
     private const string AuthTokenKey = "auth_token";
 
-    public AuthService(Supabase.Client supabase, string jwtSecret)
+    public AuthService(string hubUrl)
     {
-        _supabase = supabase;
-        _jwtSecret = jwtSecret;
+        _hubUrl = hubUrl;
     }
 
-    private string HashPassword(string password)
+    private async Task EnsureHubConnected(bool requireAuth = false)
     {
-        using var sha256 = SHA256.Create();
-        var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-        return Convert.ToBase64String(hashedBytes);
-    }
+        if (_hubConnection?.State == HubConnectionState.Connected)
+            return;
 
-    public string GenerateJwtToken(Guid userId)
-    {
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes(_jwtSecret);
-        var tokenDescriptor = new SecurityTokenDescriptor
-        {
-            Subject = new ClaimsIdentity(new[]
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(_hubUrl, options =>
             {
-            new Claim(ClaimTypes.NameIdentifier, userId.ToString("D")) // Используем "D" формат для Guid
-        }),
-            Expires = DateTime.UtcNow.AddDays(7),
-            SigningCredentials = new SigningCredentials(
-                new SymmetricSecurityKey(key),
-                SecurityAlgorithms.HmacSha256Signature)
-        };
+                if (requireAuth)
+                {
+                    options.AccessTokenProvider = async () =>
+                    {
+                        var token = await SecureStorage.GetAsync(AuthTokenKey);
+                        return token;
+                    };
+                }
+            })
+            .WithAutomaticReconnect()
+            .Build();
 
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-        return tokenHandler.WriteToken(token);
-    }
-
-    public async Task<(bool Success, string ErrorMessage)> Login(string username, string password)
-    {
         try
         {
-            var deviceName = DeviceInfo.Name;
-            var deviceInfo = $"{DeviceInfo.Platform} {DeviceInfo.Version} {DeviceInfo.Model}";
-
-
-            var user = await _supabase.From<User>()
-                .Where(x => x.Username == username)
-                .Single();
-
-            if (user == null || user.PasswordHash != HashPassword(password))
-            {
-                return (false, "Invalid username or password");
-            }
-
-            // New approach - get all devices and filter locally
-            var allDevices = await _supabase.From<Device>()
-                .Where(x => x.UserId == user.Id)
-                .Get();
-
-            var existingDevice = allDevices.Models.FirstOrDefault(d =>
-                d.DeviceName == deviceName &&
-                d.DeviceInfo == deviceInfo);
-
-            if (existingDevice != null)
-            {
-                // Update only the current device
-                await _supabase.From<Device>()
-                    .Where(x => x.Id == existingDevice.Id)
-                    .Set(x => x.LastActive, DateTime.UtcNow)
-                    .Set(x => x.IsCurrent, true)
-                    .Update();
-            }
-            else
-            {
-                // First, set all devices as non-current
-                await _supabase.From<Device>()
-                    .Where(x => x.UserId == user.Id)
-                    .Set(x => x.IsCurrent, false)
-                    .Update();
-
-                // Create new device
-                var newDevice = new Device
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = user.Id,
-                    DeviceName = deviceName,
-                    DeviceInfo = deviceInfo,
-                    IsPrimary = false,
-                    IsCurrent = true,
-                    CreatedAt = DateTime.UtcNow,
-                    LastActive = DateTime.UtcNow
-                };
-                var response = await _supabase.From<Device>().Insert(newDevice);
-            }
-
-            var jwtToken = GenerateJwtToken(user.Id);
-            await SecureStorage.SetAsync(AuthTokenKey, jwtToken);
-
-            var signalRService = MauiProgram.Services.GetService<SignalRService>();
-            await signalRService.Connect();
-
-            return (true, string.Empty);
+            await _hubConnection.StartAsync();
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[ERROR] Login failed: {ex}");
-            return (false, "Login failed. Please try again.");
+            Debug.WriteLine($"SignalR Connection Error: {ex}");
+            throw;
         }
     }
 
@@ -128,79 +52,78 @@ public class AuthService
     {
         try
         {
+            await EnsureHubConnected(requireAuth: false);
+
             var deviceName = DeviceInfo.Name;
             var deviceInfo = $"{DeviceInfo.Platform} {DeviceInfo.Version}";
 
-            var existingUser = await _supabase.From<User>()
-                .Where(x => x.Username == username)
-                .Single();
+            var token = await _hubConnection.InvokeAsync<string>(
+                "Register",
+                username,
+                password,
+                displayName ?? username,
+                deviceName,
+                deviceInfo);
 
-            if (existingUser != null)
-            {
-                return (false, "Username is already taken");
-            }
+            await SecureStorage.SetAsync(AuthTokenKey, token);
 
-            var newUser = new User
-            {
-                Id = Guid.NewGuid(),
-                Username = username,
-                PasswordHash = HashPassword(password),
-                DisplayName = displayName ?? username,
-                CreatedAt = DateTime.UtcNow,
-                IsRestricted = false
-            };
-
-            var response = await _supabase.From<User>().Insert(newUser);
-            var createdUser = response.Models.First();
-
-            await AddDeviceForUser(createdUser.Id, deviceName, deviceInfo, isPrimary: true, isCurrent: true);
-
-            var jwtToken = GenerateJwtToken(createdUser.Id);
-            await SecureStorage.SetAsync(AuthTokenKey, jwtToken);
-
-            // Добавляем ожидание подключения SignalR
-            var signalRService = MauiProgram.Services.GetService<SignalRService>();
-            await signalRService.Connect();
+            // Now disconnect and reconnect with the new token
+            await _hubConnection.StopAsync();
+            await _hubConnection.DisposeAsync();
+            _hubConnection = null;
 
             return (true, string.Empty);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Registration error: {ex.Message}");
-            return (false, "Registration failed. Please try again.");
+            Debug.WriteLine($"Registration error: {ex.Message}");
+            return (false, ex is HubException hubEx ? hubEx.Message : "Registration failed. Please try again.");
         }
     }
 
-    private async Task AddDeviceForUser(Guid userId, string deviceName, string deviceInfo, bool isPrimary, bool isCurrent)
+    public async Task<(bool Success, string ErrorMessage)> Login(string username, string password)
     {
-        // Check if device already exists
-        var existingDevice = await _supabase.From<Device>()
-            .Where(x => x.UserId == userId && x.DeviceInfo == deviceInfo)
-            .Single();
+        try
+        {
+            await EnsureHubConnected(requireAuth: false);
 
-        if (existingDevice != null)
-        {
-            // Update existing device
-            existingDevice.LastActive = DateTime.UtcNow;
-            existingDevice.IsCurrent = isCurrent;
-            await _supabase.From<Device>().Update(existingDevice);
-        }
-        else
-        {
-            // Create new device
-            var newDevice = new Device
+            var deviceName = DeviceInfo.Name ?? "Unknown Device";
+            var deviceInfo = $"{DeviceInfo.Platform} {DeviceInfo.Version} {DeviceInfo.Model}" ?? "Unknown Info";
+
+            var token = await _hubConnection.InvokeAsync<string>(
+                "Login",
+                username,
+                password,
+                deviceName,
+                deviceInfo);
+
+            if (string.IsNullOrEmpty(token))
             {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                DeviceName = deviceName,
-                DeviceInfo = deviceInfo,
-                IsPrimary = isPrimary,
-                IsCurrent = isCurrent,
-                CreatedAt = DateTime.UtcNow,
-                LastActive = DateTime.UtcNow
-            };
+                return (false, "Login failed - no token received");
+            }
 
-            await _supabase.From<Device>().Insert(newDevice);
+            await SecureStorage.SetAsync(AuthTokenKey, token);
+
+            // Now disconnect and reconnect with the new token
+            await _hubConnection.StopAsync();
+            await _hubConnection.DisposeAsync();
+            _hubConnection = null;
+
+            // Connect SignalR service with new token
+            var signalRService = MauiProgram.Services.GetService<SignalRService>();
+            await signalRService.Connect();
+
+            return (true, string.Empty);
+        }
+        catch (HubException hubEx)
+        {
+            Debug.WriteLine($"[HUB ERROR] Login failed: {hubEx.Message}");
+            return (false, hubEx.Message);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[ERROR] Login failed: {ex}");
+            return (false, "Login failed. Please try again.");
         }
     }
 
@@ -226,7 +149,21 @@ public class AuthService
 
     public async Task Logout()
     {
-        SecureStorage.Remove(AuthTokenKey);
+        try
+        {
+            await EnsureHubConnected(requireAuth: true);
+            await _hubConnection.InvokeAsync("Logout");
+            SecureStorage.Remove(AuthTokenKey);
+            await _hubConnection.StopAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Logout error: {ex}");
+        }
+        finally
+        {
+            SecureStorage.Remove(AuthTokenKey);
+        }
     }
 
     public Guid GetCurrentUserId()
@@ -243,7 +180,6 @@ public class AuthService
             var handler = new JwtSecurityTokenHandler();
             var jwtToken = handler.ReadJwtToken(token);
 
-            // Проверяем все возможные варианты claim'ов
             var userIdClaim = jwtToken.Claims.FirstOrDefault(c =>
                 c.Type == ClaimTypes.NameIdentifier ||
                 c.Type == JwtRegisteredClaimNames.Sub ||
