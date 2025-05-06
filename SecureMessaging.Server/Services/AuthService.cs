@@ -59,29 +59,28 @@ public class AuthService
                 .Where(x => x.Username == username)
                 .Single();
 
-            if (user == null)
+            if (user == null || !VerifyPassword(password, user.PasswordHash))
             {
-                throw new Exception("User not found");
+                throw new Exception("Invalid credentials");
             }
 
-            if (!VerifyPassword(password, user.PasswordHash))
-            {
-                throw new Exception("Invalid password");
-            }
+            // Ensure device info is not null
+            deviceName ??= "Unknown Device";
+            deviceInfo ??= "Unknown Platform";
 
             try
             {
-                // Try to create device - if fails, still allow login
                 await _deviceService.CreateDevice(
                     user.Id,
-                    deviceName ?? "Unknown Device",
-                    deviceInfo ?? "Unknown Info",
-                    false,
-                    true);
+                    deviceName,
+                    deviceInfo,
+                    isPrimary: false,
+                    isCurrent: true);
             }
             catch (Exception deviceEx)
             {
-                Console.WriteLine($"Device creation failed but continuing login: {deviceEx}");
+                Console.WriteLine($"Non-critical device creation error: {deviceEx}");
+                // Continue with login anyway
             }
 
             return GenerateJwtToken(user.Id);

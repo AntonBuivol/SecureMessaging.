@@ -87,6 +87,7 @@ public class AuthService
         {
             await EnsureHubConnected(requireAuth: false);
 
+            // Get device info using MAUI APIs (client-side only)
             var deviceName = DeviceInfo.Name ?? "Unknown Device";
             var deviceInfo = $"{DeviceInfo.Platform} {DeviceInfo.Version} {DeviceInfo.Model}" ?? "Unknown Info";
 
@@ -103,26 +104,14 @@ public class AuthService
             }
 
             await SecureStorage.SetAsync(AuthTokenKey, token);
-
-            // Now disconnect and reconnect with the new token
-            await _hubConnection.StopAsync();
-            await _hubConnection.DisposeAsync();
-            _hubConnection = null;
-
-            // Connect SignalR service with new token
-            var signalRService = MauiProgram.Services.GetService<SignalRService>();
-            await signalRService.Connect();
-
             return (true, string.Empty);
         }
         catch (HubException hubEx)
         {
-            Debug.WriteLine($"[HUB ERROR] Login failed: {hubEx.Message}");
             return (false, hubEx.Message);
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[ERROR] Login failed: {ex}");
             return (false, "Login failed. Please try again.");
         }
     }

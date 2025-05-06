@@ -17,54 +17,46 @@ public class DeviceService
     {
         try
         {
-            // Verify Supabase is initialized
+            // 1. Verify Supabase initialization
             if (_supabase == null)
             {
-                throw new Exception("Supabase client not initialized");
+                throw new Exception("Supabase client is null");
             }
 
-            // Reset current device flag for all other devices of this user
-            if (isCurrent)
+            // 2. Explicitly initialize the table reference
+            var table = _supabase.From<Device>();
+            if (table == null)
             {
-                var currentDevices = await _supabase.From<Device>()
-                    .Where(x => x.UserId == userId && x.IsCurrent)
-                    .Get();
-
-                if (currentDevices.ResponseMessage?.IsSuccessStatusCode ?? false)
-                {
-                    foreach (var device in currentDevices.Models)
-                    {
-                        device.IsCurrent = false;
-                        await _supabase.From<Device>().Update(device);
-                    }
-                }
+                throw new Exception("Failed to initialize Device table");
             }
 
-            // Create new device
+            // 3. Create device with all required fields
             var newDevice = new Device
             {
-                Id = Guid.NewGuid(), // Explicitly set ID
+                Id = Guid.NewGuid(),
                 UserId = userId,
-                DeviceName = deviceName ?? "Unknown Device",
-                DeviceInfo = deviceInfo ?? "Unknown Info",
+                DeviceName = deviceName ?? "Unknown",
+                DeviceInfo = deviceInfo ?? "Unknown",
                 IsPrimary = isPrimary,
                 IsCurrent = isCurrent,
                 CreatedAt = DateTime.UtcNow,
                 LastActive = DateTime.UtcNow,
-                AccessToken = null // Explicitly set to null if not used
+                AccessToken = string.Empty // Required field
             };
 
-            var response = await _supabase.From<Device>().Insert(newDevice);
+            // 4. Insert with explicit error handling
+            var response = await table.Insert(newDevice);
 
             if (!response.ResponseMessage.IsSuccessStatusCode)
             {
-                throw new Exception($"Failed to create device: {response.ResponseMessage.ReasonPhrase}");
+                var error = await response.ResponseMessage.Content.ReadAsStringAsync();
+                throw new Exception($"Supabase error: {error}");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error creating device: {ex}");
-            throw new Exception("Device creation failed", ex);
+            Console.WriteLine($"Device creation error: {ex}");
+            throw;
         }
     }
 

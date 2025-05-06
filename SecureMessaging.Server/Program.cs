@@ -38,8 +38,20 @@ var supabase = new Client(supabaseUrl, supabaseKey, options);
 // Initialize the connection
 await supabase.InitializeAsync();
 
-builder.Services.AddSingleton(supabase);
 builder.Services.AddSingleton(provider => new Client(supabaseUrl, supabaseKey, options));
+builder.Services.AddSingleton(supabase);
+_ = Task.Run(async () =>
+{
+    try
+    {
+        await supabase.InitializeAsync();
+        Console.WriteLine("Supabase initialized successfully");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Supabase init failed: {ex}");
+    }
+});
 
 // Add services
 builder.Services.AddScoped<AuthService>();
@@ -96,15 +108,29 @@ app.MapHub<AuthHub>("/authHub", options =>
     options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets;
 });
 
-app.MapGet("/test-supabase", async (Client supabase) =>
+app.MapGet("/debug/createdevice", async (Client supabase) =>
 {
     try
     {
-        var result = await supabase.From<Device>().Get();
+        var device = new Device
+        {
+            Id = Guid.NewGuid(),
+            UserId = Guid.NewGuid(), // Test with random ID
+            DeviceName = "Test Device",
+            DeviceInfo = "Test Info",
+            IsPrimary = false,
+            IsCurrent = true,
+            CreatedAt = DateTime.UtcNow,
+            LastActive = DateTime.UtcNow,
+            AccessToken = ""
+        };
+
+        var response = await supabase.From<Device>().Insert(device);
         return Results.Ok(new
         {
-            Success = result.ResponseMessage.IsSuccessStatusCode,
-            Count = result.Models.Count
+            Success = response.ResponseMessage.IsSuccessStatusCode,
+            Status = response.ResponseMessage.StatusCode,
+            Content = await response.ResponseMessage.Content.ReadAsStringAsync()
         });
     }
     catch (Exception ex)
