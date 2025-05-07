@@ -20,10 +20,16 @@ public class SignalRService
         _hubUrl = hubUrl;
     }
 
-    public async Task Connect()
+    public async Task Connect(bool forceReconnect = false)
     {
-        if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
+        if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected && !forceReconnect)
             return;
+
+        if (_hubConnection != null)
+        {
+            await _hubConnection.StopAsync();
+            await _hubConnection.DisposeAsync();
+        }
 
         _hubConnection = new HubConnectionBuilder()
             .WithUrl(_hubUrl, options =>

@@ -64,6 +64,9 @@ public partial class MainViewModel : ObservableObject
                 return;
             }
 
+            // Ensure SignalR is connected
+            await _signalRService.Connect();
+
             var chats = await _chatService.GetUserChats(userId);
 
             Chats.Clear();

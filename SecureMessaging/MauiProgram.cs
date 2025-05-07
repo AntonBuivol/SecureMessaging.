@@ -32,7 +32,7 @@ public static class MauiProgram
         var supabaseUrl = "https://hgmogmeywxfdrggfdfzl.supabase.co";
         var supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhnbW9nbWV5d3hmZHJnZ2ZkZnpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMyNjMyNDMsImV4cCI6MjA1ODgzOTI0M30.75mo-uchFP1Mf9RzC-2Jn-De73Rn-agxpcofhSp2DWo";
         var jwtKey = "D3kGdmfJBfNJepC0J37w7Wa6HtmEAVFJVXIFEhXXr0BRlCFB8hREAFi4lhjapOU44+rdyv6ZtcneOiU4sQzVew==";
-        var signalRHubUrl = "https://7342-145-14-21-133.ngrok-free.app/chatHub";
+        var signalRHubUrl = "https://9e76-145-14-21-133.ngrok-free.app/chatHub";
 
         var supabaseOptions = new SupabaseOptions
         {
@@ -44,7 +44,7 @@ public static class MauiProgram
         builder.Services.AddSingleton(supabaseClient);
 
         builder.Services.AddSingleton<AuthService>(provider =>
-    new AuthService("https://7342-145-14-21-133.ngrok-free.app/authHub"));
+    new AuthService("https://9e76-145-14-21-133.ngrok-free.app/authHub"));
 
         builder.Services.AddSingleton<SignalRService>(provider =>
             new SignalRService(

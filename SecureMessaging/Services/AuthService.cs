@@ -74,6 +74,8 @@ public class AuthService
             await _hubConnection.DisposeAsync();
             _hubConnection = null;
 
+            await EnsureHubConnected(requireAuth: true);
+
             return (true, string.Empty);
         }
         catch (Exception ex)
@@ -105,6 +107,9 @@ public class AuthService
             }
 
             await SecureStorage.SetAsync(AuthTokenKey, token);
+
+            await EnsureHubConnected(requireAuth: true);
+
             return (true, string.Empty);
         }
         catch (Exception ex)
