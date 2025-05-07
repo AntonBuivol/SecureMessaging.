@@ -13,53 +13,6 @@ public class DeviceService
         _supabase = supabase ?? throw new ArgumentNullException(nameof(supabase));
     }
 
-    public async Task<Device> GetOrCreateDevice(Guid userId, string deviceName, string deviceInfo, bool isPrimary, bool isCurrent)
-    {
-        try
-        {
-            // Try to find existing device
-            var existingDevice = await _supabase.From<Device>()
-                .Where(d => d.UserId == userId && d.DeviceInfo == deviceInfo)
-                .Single();
-
-            if (existingDevice != null)
-            {
-                // Update existing device
-                existingDevice.IsCurrent = isCurrent;
-                existingDevice.LastActive = DateTime.UtcNow;
-                existingDevice.DeviceName = deviceName; // Update name if changed
-
-                var updateResponse = await _supabase.From<Device>()
-                    .Where(d => d.Id == existingDevice.Id)
-                    .Update(existingDevice);
-
-                return updateResponse.Models.First();
-            }
-
-            // Create new device if not found
-            var newDevice = new Device
-            {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                DeviceName = deviceName,
-                DeviceInfo = deviceInfo,
-                IsPrimary = isPrimary,
-                IsCurrent = isCurrent,
-                CreatedAt = DateTime.UtcNow,
-                LastActive = DateTime.UtcNow,
-                AccessToken = null
-            };
-
-            var response = await _supabase.From<Device>().Insert(newDevice);
-            return response.Models.First();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Device operation failed: {ex}");
-            throw;
-        }
-    }
-
     public async Task CreateDevice(Guid userId, string deviceName, string deviceInfo, bool isPrimary, bool isCurrent)
     {
         try

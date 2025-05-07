@@ -64,15 +64,29 @@ public class AuthService
                 throw new Exception("Invalid credentials");
             }
 
-            // This will either find existing device or create new one
-            await _deviceService.GetOrCreateDevice(
-                user.Id,
-                deviceName ?? "Unknown Device",
-                deviceInfo ?? "Unknown Platform",
-                isPrimary: false,
-                isCurrent: true);
+            // Проверяем существование устройства
+            var existingDevice = await _supabase.From<Device>()
+                .Where(d => d.UserId == user.Id && d.DeviceName == deviceName)
+                .Single();
 
-            return GenerateJwtToken(user.Id);
+            if (existingDevice != null)
+            {
+                // Обновляем существующее устройство
+                existingDevice.IsCurrent = true;
+                existingDevice.LastActive = DateTime.UtcNow;
+
+                var updateResponse = await _supabase.From<Device>()
+                    .Where(d => d.Id == existingDevice.Id)
+                    .Update(existingDevice);
+
+                return GenerateJwtToken(user.Id);
+            }
+            else
+            {
+                // Создаем новое устройство, если не найдено
+                await _deviceService.CreateDevice(user.Id, deviceName, deviceInfo, false, true);
+                return GenerateJwtToken(user.Id);
+            }
         }
         catch (Exception ex)
         {
