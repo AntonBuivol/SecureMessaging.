@@ -63,4 +63,30 @@ public class AuthHub : Hub
 
         return userId;
     }
+
+    public async Task<bool> IsRestrictedUser(Guid userId)
+    {
+        try
+        {
+            return await _authService.IsRestrictedUser(userId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking user restrictions");
+            return true;
+        }
+    }
+
+    public async Task<bool> IsPrimaryDevice(Guid userId, string deviceName)
+    {
+        try
+        {
+            return await _authService.IsPrimaryDevice(userId, deviceName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking primary device");
+            return false;
+        }
+    }
 }

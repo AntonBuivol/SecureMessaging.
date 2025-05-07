@@ -13,13 +13,15 @@ public class ChatHub : Hub
     private readonly UserService _userService;
     private readonly AuthService _authService;
     private readonly ILogger<ChatHub> _logger;
+    private readonly Supabase.Client _supabase;
 
-    public ChatHub(ChatService chatService, UserService userService, AuthService authService, ILogger<ChatHub> logger)
+    public ChatHub(ChatService chatService, UserService userService, AuthService authService, ILogger<ChatHub> logger, Supabase.Client supabase)
     {
         _chatService = chatService;
         _userService = userService;
         _authService = authService;
         _logger = logger;
+        _supabase = supabase;
     }
 
     public async Task<List<Message>> GetChatMessages(Guid chatId)
@@ -138,5 +140,37 @@ public class ChatHub : Hub
         }
 
         return userId;
+    }
+
+    public async Task<bool> IsPrimaryDevice(Guid userId, string deviceName)
+    {
+        try
+        {
+            var device = await _supabase.From<Device>()
+                .Where(d => d.UserId == userId && d.DeviceName == deviceName)
+                .Single();
+
+            return device?.IsPrimary ?? false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> IsRestrictedUser(Guid userId)
+    {
+        try
+        {
+            var user = await _supabase.From<User>()
+                .Where(u => u.Id == userId)
+                .Single();
+
+            return user?.IsRestricted ?? false;
+        }
+        catch
+        {
+            return true; // Если не удалось проверить, считаем что ограничен
+        }
     }
 }

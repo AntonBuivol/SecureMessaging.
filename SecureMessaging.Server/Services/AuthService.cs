@@ -143,4 +143,36 @@ public class AuthService
 
         throw new UnauthorizedAccessException("Invalid user ID in token");
     }
+
+    public async Task<bool> IsPrimaryDevice(Guid userId, string deviceName)
+    {
+        try
+        {
+            var device = await _supabase.From<Device>()
+                .Where(d => d.UserId == userId && d.DeviceName == deviceName)
+                .Single();
+
+            return device?.IsPrimary ?? false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> IsRestrictedUser(Guid userId)
+    {
+        try
+        {
+            var user = await _supabase.From<User>()
+                .Where(u => u.Id == userId)
+                .Single();
+
+            return user?.IsRestricted ?? false;
+        }
+        catch
+        {
+            return true;
+        }
+    }
 }

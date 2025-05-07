@@ -205,4 +205,32 @@ public class AuthService
             return Guid.Empty;
         }
     }
+
+    public async Task<bool> IsRestrictedUser(Guid userId)
+    {
+        try
+        {
+            await EnsureHubConnected(requireAuth: true);
+            return await _hubConnection.InvokeAsync<bool>("IsRestrictedUser", userId);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"IsRestrictedUser error: {ex}");
+            return true;
+        }
+    }
+
+    public async Task<bool> IsPrimaryDevice(Guid userId, string deviceName)
+    {
+        try
+        {
+            await EnsureHubConnected(requireAuth: true);
+            return await _hubConnection.InvokeAsync<bool>("IsPrimaryDevice", userId, deviceName);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"IsPrimaryDevice error: {ex}");
+            return false;
+        }
+    }
 }

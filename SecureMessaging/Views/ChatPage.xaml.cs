@@ -1,4 +1,5 @@
 ﻿using SecureMessaging.Models;
+using SecureMessaging.Services;
 using SecureMessaging.ViewModels;
 using System.Diagnostics;
 
@@ -20,10 +21,23 @@ public partial class ChatPage : ContentPage
         {
             try
             {
+                var authService = MauiProgram.Services.GetService<AuthService>();
+                var deviceName = DeviceInfo.Name;
+                var userId = authService.GetCurrentUserId();
+
+                if (await authService.IsRestrictedUser(userId) &&
+                    !await authService.IsPrimaryDevice(userId, deviceName))
+                {
+                    await Shell.Current.DisplayAlert("Access Denied",
+                        "Please use your primary device to access chats", "OK");
+                    await Shell.Current.GoToAsync("//MainPage");
+                    return;
+                }
+
                 if (NavigationData.CurrentChatId != Guid.Empty)
                 {
                     await vm.LoadChat(NavigationData.CurrentChatId);
-                    NavigationData.CurrentChatId = Guid.Empty; // Очищаем после использования
+                    NavigationData.CurrentChatId = Guid.Empty;
                 }
                 else
                 {

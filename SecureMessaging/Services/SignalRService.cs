@@ -31,6 +31,7 @@ public class SignalRService
             await _hubConnection.DisposeAsync();
         }
 
+        var deviceName = DeviceInfo.Name;
         _hubConnection = new HubConnectionBuilder()
             .WithUrl(_hubUrl, options =>
             {
@@ -39,9 +40,19 @@ public class SignalRService
                     var token = await SecureStorage.GetAsync("auth_token");
                     return token;
                 };
+                options.Headers["Device-Name"] = deviceName;
             })
             .WithAutomaticReconnect(new RetryPolicy())
             .Build();
+
+        _hubConnection.On<string>("AccessDenied", (message) =>
+        {
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                await Shell.Current.DisplayAlert("Access Denied", message, "OK");
+                await Shell.Current.GoToAsync("//LoginPage");
+            });
+        });
 
         _hubConnection.On<Message>("ReceiveMessage", message => MessageReceived?.Invoke(message));
         _hubConnection.On<Chat>("ChatStarted", chat => ChatStarted?.Invoke(chat));
