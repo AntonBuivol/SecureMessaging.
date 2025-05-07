@@ -54,30 +54,24 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
-            var userId = _authService.GetCurrentUserId();
-            Debug.WriteLine($"Loading chats for user: {userId}");
-
-            if (userId == Guid.Empty)
-            {
-                await Shell.Current.DisplayAlert("Error", "Please login again", "OK");
-                await Shell.Current.GoToAsync("//LoginPage");
-                return;
-            }
-
-            // Ensure SignalR is connected
+            // Убедимся, что подключение установлено
             await _signalRService.Connect();
 
-            var chats = await _chatService.GetUserChats(userId);
+            var chats = await _signalRService.GetUserChats();
 
-            Chats.Clear();
-            foreach (var chat in chats)
+            MainThread.BeginInvokeOnMainThread(() =>
             {
-                Chats.Add(chat);
-            }
+                Chats.Clear();
+                foreach (var chat in chats)
+                {
+                    Chats.Add(chat);
+                }
+            });
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"Error loading chats: {ex}");
+            await Shell.Current.DisplayAlert("Error", "Failed to load chats", "OK");
         }
         finally
         {

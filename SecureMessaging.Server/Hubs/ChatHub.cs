@@ -113,7 +113,19 @@ public class ChatHub : Hub
         }
     }
 
-
+    public async Task<List<ChatDto>> GetUserChats()
+    {
+        try
+        {
+            var userId = GetUserId();
+            return await _chatService.GetUserChats(userId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting user chats");
+            throw new HubException("Failed to get user chats");
+        }
+    }
 
     private Guid GetUserId()
     {

@@ -52,28 +52,78 @@ public class ChatService
         }
     }
 
-    public async Task<List<Chat>> GetUserChats(Guid userId)
+    public async Task<List<ChatDto>> GetUserChats(Guid userId)
     {
-        var userChats = await _supabase
-            .From<UserChat>()
-            .Where(x => x.UserId == userId)
-            .Get();
-
-        var chatIds = userChats.Models.Select(x => x.ChatId).ToList();
-
-        if (chatIds.Count == 0)
+        try
         {
-            return new List<Chat>();
+            // Получаем все chat_id для пользователя
+            var userChatsResponse = await _supabase
+                .From<UserChat>()
+                .Select(x => new object[] { x.ChatId })
+                .Where(x => x.UserId == userId)
+                .Get();
+
+            if (userChatsResponse.Models.Count == 0)
+                return new List<ChatDto>();
+
+            // Преобразуем GUID в строки для фильтрации
+            var chatIdStrings = userChatsResponse.Models
+                .Select(x => x.ChatId.ToString())
+                .ToList();
+
+            // Получаем информацию о чатах
+            var chatsResponse = await _supabase
+                .From<Chat>()
+                .Filter("id", Operator.In, chatIdStrings)
+                .Order("last_message_at", Ordering.Descending)
+                .Get();
+
+            var chats = new List<ChatDto>();
+
+            // Для каждого чата получаем информацию об участниках
+            foreach (var chat in chatsResponse.Models)
+            {
+                var participants = await GetChatParticipants(chat.Id);
+                var otherUserId = participants.FirstOrDefault(id => id != userId);
+                string displayName;
+
+                if (otherUserId != null && !chat.IsGroup)
+                {
+                    var otherUser = await _supabase.From<User>()
+                        .Filter("id", Operator.Equals, otherUserId.ToString())
+                        .Single();
+
+                    displayName = otherUser?.DisplayName ?? otherUser?.Username ?? "Unknown";
+                }
+                else if (chat.IsGroup)
+                {
+                    displayName = chat.GroupName ?? "Group Chat";
+                }
+                else
+                {
+                    displayName = "Unknown";
+                }
+
+                chats.Add(new ChatDto
+                {
+                    Id = chat.Id,
+                    IsGroup = chat.IsGroup,
+                    GroupName = chat.GroupName,
+                    CreatedAt = chat.CreatedAt,
+                    LastMessageAt = chat.LastMessageAt,
+                    DisplayName = displayName
+                });
+            }
+
+            return chats;
         }
-
-        var chatsResponse = await _supabase
-            .From<Chat>()
-            .Where(x => chatIds.Contains(x.Id))
-            .Order(x => x.LastMessageAt, Supabase.Postgrest.Constants.Ordering.Descending)
-            .Get();
-
-        return chatsResponse.Models;
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in GetUserChats: {ex}");
+            throw;
+        }
     }
+
 
     public async Task<Message> SendMessage(Guid chatId, Guid senderId, string content)
     {
@@ -186,21 +236,21 @@ public class ChatService
     }
 
     public async Task<List<Guid>> GetChatParticipants(Guid chatId)
-{
-    try
     {
-        var response = await _supabase
-            .From<UserChat>()
-            .Select(x => new object[] { x.UserId })
-            .Where(x => x.ChatId == chatId)
-            .Get();
+        try
+        {
+            var response = await _supabase
+                .From<UserChat>()
+                .Select(x => new object[] { x.UserId })
+                .Filter("chat_id", Operator.Equals, chatId.ToString())
+                .Get();
 
-        return response.Models.Select(x => x.UserId).ToList();
+            return response.Models.Select(x => x.UserId).ToList();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error getting chat participants: {ex}");
+            throw;
+        }
     }
-    catch (Exception ex)
-    {
-        Debug.WriteLine($"Error getting chat participants: {ex}");
-        throw;
-    }
-}
 }

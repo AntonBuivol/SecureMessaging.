@@ -106,3 +106,16 @@ public class DateTimeToTimeConverter : IValueConverter
         throw new NotImplementedException();
     }
 }
+
+public class ChatTypeToImageConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        return (bool)value ? "group_chat.png" : "private_chat.png";
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}

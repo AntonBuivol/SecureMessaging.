@@ -133,4 +133,22 @@ public class SignalRService
         }
         throw new Exception("SignalR connection not established");
     }
+
+    public async Task<List<Chat>> GetUserChats()
+    {
+        try
+        {
+            if (_hubConnection?.State != HubConnectionState.Connected)
+            {
+                await Connect();
+            }
+
+            return await _hubConnection.InvokeAsync<List<Chat>>("GetUserChats");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error getting user chats: {ex}");
+            return new List<Chat>();
+        }
+    }
 }

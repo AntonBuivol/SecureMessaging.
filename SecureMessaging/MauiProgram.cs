@@ -81,6 +81,7 @@ public static class MauiProgram
 
         builder.Services.AddSingleton<InverseBoolConverter>();
         builder.Services.AddSingleton<DateTimeToTimeConverter>();
+        builder.Services.AddSingleton<ChatTypeToImageConverter>();
 
         builder.UseMauiApp<App>().UseMauiCommunityToolkit();
 

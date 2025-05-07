@@ -46,9 +46,26 @@
               SelectionChangedCommandParameter="{Binding SelectedItem, Source={RelativeSource Self}}">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Grid Padding="15,10">
-                            <Label Text="{Binding DisplayName}"
-                                   FontSize="16"/>
+                        <Grid Padding="15,10" ColumnDefinitions="Auto,*,Auto">
+                            <Image Source="{Binding IsGroup, Converter={StaticResource ChatTypeToImageConverter}}"
+                       WidthRequest="40"
+                       HeightRequest="40"
+                       VerticalOptions="Center"/>
+
+                            <VerticalStackLayout Grid.Column="1" Padding="10,0">
+                                <Label Text="{Binding DisplayName}"
+                           FontSize="16"
+                           FontAttributes="Bold"/>
+                                <Label Text="{Binding LastMessagePreview}"
+                           FontSize="14"
+                           TextColor="Gray"/>
+                            </VerticalStackLayout>
+
+                            <Label Grid.Column="2"
+                       Text="{Binding LastMessageAt, Converter={StaticResource DateTimeToTimeConverter}}"
+                       FontSize="12"
+                       TextColor="Gray"
+                       VerticalOptions="Start"/>
                         </Grid>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
