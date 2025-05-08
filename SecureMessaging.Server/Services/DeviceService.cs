@@ -121,38 +121,49 @@ public class DeviceService
     {
         try
         {
-            if (string.IsNullOrEmpty(deviceName))
-            {
-                // Find the device marked as current for this user
-                var response = await _supabase.From<Device>()
-                    .Where(x => x.UserId == userId && x.IsCurrent)
-                    .Single();
-
-                if (response == null)
-                {
-                    throw new KeyNotFoundException($"No current device found for user {userId}");
-                }
-
-                return ToDeviceDto(response);
-            }
-
-            var device = await _supabase.From<Device>()
+            // First try exact match
+            var exactMatch = await _supabase.From<Device>()
                 .Where(x => x.UserId == userId && x.DeviceName == deviceName)
                 .Single();
 
-            if (device == null)
+            if (exactMatch != null)
             {
-                throw new KeyNotFoundException($"Device not found for user {userId} with name {deviceName}");
+                return ToDeviceDto(exactMatch);
             }
 
-            return ToDeviceDto(device);
+            // Try partial match if exact match fails
+            var devices = await _supabase.From<Device>()
+                .Where(x => x.UserId == userId)
+                .Get();
+
+            var matchingDevice = devices.Models
+                .FirstOrDefault(d => d.DeviceName.Contains(deviceName) ||
+                                 deviceName.Contains(d.DeviceName));
+
+            if (matchingDevice != null)
+            {
+                return ToDeviceDto(matchingDevice);
+            }
+
+            // Fallback to most recent device
+            var mostRecent = devices.Models
+                .OrderByDescending(d => d.LastActive)
+                .FirstOrDefault();
+
+            if (mostRecent != null)
+            {
+                return ToDeviceDto(mostRecent);
+            }
+
+            throw new KeyNotFoundException($"No devices found for user {userId}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error getting current device for user {userId}   {ex}");
+            Console.WriteLine($"Error getting current device for user {userId}   -   {ex}");
             throw;
         }
     }
+
 
     private DeviceDto ToDeviceDto(Device device)
     {

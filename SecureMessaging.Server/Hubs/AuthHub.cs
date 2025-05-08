@@ -114,6 +114,7 @@ public class AuthHub : Hub
         await _deviceService.RemoveDevice(deviceId, userId);
     }
 
+    [Authorize]
     public async Task<DeviceDto> GetCurrentDevice()
     {
         try
@@ -126,17 +127,19 @@ public class AuthHub : Hub
                 throw new HubException("Unable to access request context");
             }
 
-            var deviceName = httpContext.Request.Headers["Device-Name"].ToString();
+            var deviceName = httpContext.Request.Headers["Device-Name"].FirstOrDefault();
 
             if (string.IsNullOrEmpty(deviceName))
             {
-                // Fallback to finding the current device for this user
+                // Try to get the most recently active device as fallback
                 var devices = await _deviceService.GetUserDevices(userId);
-                var currentDevice = devices.FirstOrDefault(d => d.IsCurrent);
+                var currentDevice = devices
+                    .OrderByDescending(d => d.LastActive)
+                    .FirstOrDefault();
 
                 if (currentDevice == null)
                 {
-                    throw new HubException("No current device found for user");
+                    throw new HubException("No devices found for user");
                 }
 
                 return currentDevice;
@@ -147,7 +150,7 @@ public class AuthHub : Hub
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting current device");
-            throw new HubException("Failed to get current device information. Please try again.");
+            throw new HubException("Failed to identify current device. Please try again.");
         }
     }
 }

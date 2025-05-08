@@ -70,15 +70,7 @@ public class DeviceService
 
             if (device == null)
             {
-                // Try to get the device by user ID if direct lookup fails
-                var userId = _authService.GetCurrentUserId();
-                var devices = await GetUserDevices(userId);
-                device = devices.FirstOrDefault(d => d.IsCurrent);
-
-                if (device == null)
-                {
-                    throw new Exception("Current device information not found");
-                }
+                throw new Exception("Current device information not available");
             }
 
             return device;
@@ -86,7 +78,7 @@ public class DeviceService
         catch (Exception ex)
         {
             Debug.WriteLine($"Error getting current device: {ex}");
-            throw new Exception("Failed to get current device information. Please try again.", ex);
+            throw new Exception("Could not identify current device. Please check your connection and try again.", ex);
         }
     }
 }
