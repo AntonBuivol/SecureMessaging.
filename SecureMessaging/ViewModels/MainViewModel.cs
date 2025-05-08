@@ -50,12 +50,18 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task LoadChats()
     {
+        if (IsRefreshing) return;
+
         IsRefreshing = true;
 
         try
         {
-            // Убедимся, что подключение установлено
-            await _signalRService.Connect();
+            // Пробуем подключиться с таймаутом
+            var connectTask = _signalRService.Connect();
+            if (await Task.WhenAny(connectTask, Task.Delay(10000)) != connectTask)
+            {
+                throw new TimeoutException("Connection timeout");
+            }
 
             var chats = await _signalRService.GetUserChats();
 
@@ -71,7 +77,8 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             Debug.WriteLine($"Error loading chats: {ex}");
-            await Shell.Current.DisplayAlert("Error", "Failed to load chats", "OK");
+            await Shell.Current.DisplayAlert("Connection Error",
+                "Could not connect to server. Please check your internet connection and try again.", "OK");
         }
         finally
         {
