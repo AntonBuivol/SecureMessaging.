@@ -9,62 +9,123 @@
     <ScrollView>
         <VerticalStackLayout Spacing="20" Padding="30">
 
-            <Label Text="Devices"
+            <!-- Current Device Section -->
+            <Label Text="Current Device"
                    FontAttributes="Bold"/>
 
-            <CollectionView ItemsSource="{Binding Devices}">
+            <Frame Padding="10" BackgroundColor="{AppThemeBinding Light=LightGray, Dark=DarkGray}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Label Text="{Binding CurrentDevice.DeviceName}"
+                           FontSize="16"
+                           FontAttributes="Bold"/>
+
+                    <Label Grid.Row="1" Text="{Binding CurrentDevice.DeviceInfo}"
+                           FontSize="14"/>
+
+                    <Label Grid.Row="1" HorizontalOptions="End"
+                           Text="{Binding CurrentDevice.IsPrimary, StringFormat='{0}Primary'}"
+                           IsVisible="{Binding CurrentDevice.IsPrimary}"
+                           FontAttributes="Bold"
+                           TextColor="Green"/>
+                </Grid>
+            </Frame>
+
+            <!-- Other Devices Section -->
+            <Label Text="Other Devices"
+                   FontAttributes="Bold"/>
+
+            <CollectionView ItemsSource="{Binding Devices}"
+                           EmptyView="No other devices found">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Grid Padding="10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
+                        <Frame Padding="10" Margin="0,5">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
 
-                            <Label Text="{Binding DeviceName}"
-                                   FontSize="16"/>
+                                <Label Text="{Binding DeviceName}"
+                                       FontSize="16"/>
 
-                            <HorizontalStackLayout Grid.Column="1" Spacing="10">
-                                <Button Text="Primary"
-                                        Command="{Binding Source={RelativeSource AncestorType={x:Type viewmodels:AppSettingsViewModel}}, Path=SetPrimaryDeviceCommand}"
-                                        CommandParameter="{Binding .}"
-                                        IsVisible="{Binding IsPrimary, Converter={StaticResource InverseBooleanConverter}}"/>
+                                <Label Grid.Row="1" Text="{Binding DeviceInfo}"
+                                       FontSize="14"/>
 
-                                <Button Text="Remove"
-                                        Command="{Binding Source={RelativeSource AncestorType={x:Type viewmodels:AppSettingsViewModel}}, Path=RemoveDeviceCommand}"
-                                        CommandParameter="{Binding .}"
-                                        IsVisible="{Binding IsCurrent, Converter={StaticResource InverseBooleanConverter}}"/>
-                            </HorizontalStackLayout>
-                        </Grid>
+                                <Label Grid.Row="0" Grid.Column="1" 
+                                       Text="Primary"
+                                       IsVisible="{Binding IsPrimary}"
+                                       FontAttributes="Bold"
+                                       TextColor="Green"/>
+
+                                <HorizontalStackLayout Grid.Row="1" Grid.Column="1" Spacing="10">
+                                    <Button Text="Make Primary"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type viewmodels:AppSettingsViewModel}}, Path=SetPrimaryDeviceCommand}"
+                                            CommandParameter="{Binding .}"
+                                            IsVisible="{Binding IsPrimary, Converter={StaticResource InverseBooleanConverter}}"/>
+
+                                    <Button Text="Remove"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type viewmodels:AppSettingsViewModel}}, Path=RemoveDeviceCommand}"
+                                            CommandParameter="{Binding .}"
+                                            IsVisible="{Binding IsCurrent, Converter={StaticResource InverseBooleanConverter}}"/>
+                                </HorizontalStackLayout>
+                            </Grid>
+                        </Frame>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
             </CollectionView>
 
+            <!-- Security Section -->
             <Label Text="Security"
-       FontAttributes="Bold"/>
+                   FontAttributes="Bold"/>
 
-            <Switch IsToggled="{Binding IsRestricted}"
-        HorizontalOptions="Start">
-                <Switch.Behaviors>
-                    <toolkit:EventToCommandBehavior 
-            EventName="Toggled"
-            Command="{Binding ToggleRestrictionsCommand}"/>
-                </Switch.Behaviors>
-            </Switch>
-            <Label Text="Enable restrictions for new devices"/>
+            <Grid IsVisible="{Binding CurrentDevice.IsPrimary}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
 
+                <Switch Grid.Column="0" 
+                        IsToggled="{Binding IsRestricted}"
+                        HorizontalOptions="Start"/>
+
+                <Label Grid.Column="1" 
+                       Text="Restrict new devices"
+                       VerticalOptions="Center"/>
+            </Grid>
+
+            <!-- Appearance Section -->
             <Label Text="Appearance"
-       FontAttributes="Bold"/>
+                   FontAttributes="Bold"/>
 
-            <Switch IsToggled="{Binding IsDarkTheme}"
-        HorizontalOptions="Start">
-                <Switch.Behaviors>
-                    <toolkit:EventToCommandBehavior 
-            EventName="Toggled"
-            Command="{Binding ToggleThemeCommand}"/>
-                </Switch.Behaviors>
-            </Switch>
-            <Label Text="Dark theme"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Switch Grid.Column="0" 
+                        IsToggled="{Binding IsDarkTheme}"
+                        HorizontalOptions="Start">
+                    <Switch.Behaviors>
+                        <toolkit:EventToCommandBehavior 
+                            EventName="Toggled"
+                            Command="{Binding ToggleThemeCommand}"/>
+                    </Switch.Behaviors>
+                </Switch>
+
+                <Label Grid.Column="1" 
+                       Text="Dark theme"
+                       VerticalOptions="Center"/>
+            </Grid>
 
         </VerticalStackLayout>
     </ScrollView>

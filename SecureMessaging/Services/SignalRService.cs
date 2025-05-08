@@ -33,7 +33,6 @@ public class SignalRService
 
         try
         {
-            // Отменяем предыдущее подключение, если было
             if (_hubConnection != null)
             {
                 await _hubConnection.StopAsync();

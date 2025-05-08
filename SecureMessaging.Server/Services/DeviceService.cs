@@ -60,7 +60,7 @@ public class DeviceService
         }
     }
 
-    public async Task<List<Device>> GetUserDevices(Guid userId)
+    public async Task<List<DeviceDto>> GetUserDevices(Guid userId)
     {
         var response = await _supabase
             .From<Device>()
@@ -69,7 +69,17 @@ public class DeviceService
             .Order(x => x.IsPrimary, Supabase.Postgrest.Constants.Ordering.Descending)
             .Get();
 
-        return response.Models;
+        return response.Models.Select(d => new DeviceDto
+        {
+            Id = d.Id,
+            UserId = d.UserId,
+            DeviceName = d.DeviceName,
+            DeviceInfo = d.DeviceInfo,
+            IsPrimary = d.IsPrimary,
+            IsCurrent = d.IsCurrent,
+            CreatedAt = d.CreatedAt,
+            LastActive = d.LastActive
+        }).ToList();
     }
 
     public async Task RemoveDevice(Guid deviceId, Guid userId)
@@ -82,7 +92,7 @@ public class DeviceService
 
     public async Task SetPrimaryDevice(Guid deviceId, Guid userId)
     {
-        // Reset primary flag for all devices
+        // First reset all primary flags
         var devices = await _supabase
             .From<Device>()
             .Where(x => x.UserId == userId && x.IsPrimary)
@@ -105,5 +115,57 @@ public class DeviceService
             primaryDevice.IsPrimary = true;
             await _supabase.From<Device>().Update(primaryDevice);
         }
+    }
+
+    public async Task<DeviceDto> GetCurrentDevice(Guid userId, string deviceName)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(deviceName))
+            {
+                // Find the device marked as current for this user
+                var response = await _supabase.From<Device>()
+                    .Where(x => x.UserId == userId && x.IsCurrent)
+                    .Single();
+
+                if (response == null)
+                {
+                    throw new KeyNotFoundException($"No current device found for user {userId}");
+                }
+
+                return ToDeviceDto(response);
+            }
+
+            var device = await _supabase.From<Device>()
+                .Where(x => x.UserId == userId && x.DeviceName == deviceName)
+                .Single();
+
+            if (device == null)
+            {
+                throw new KeyNotFoundException($"Device not found for user {userId} with name {deviceName}");
+            }
+
+            return ToDeviceDto(device);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting current device for user {userId}   {ex}");
+            throw;
+        }
+    }
+
+    private DeviceDto ToDeviceDto(Device device)
+    {
+        return new DeviceDto
+        {
+            Id = device.Id,
+            UserId = device.UserId,
+            DeviceName = device.DeviceName,
+            DeviceInfo = device.DeviceInfo,
+            IsPrimary = device.IsPrimary,
+            IsCurrent = device.IsCurrent,
+            CreatedAt = device.CreatedAt,
+            LastActive = device.LastActive
+        };
     }
 }

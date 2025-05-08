@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using SecureMessaging.Server.Models;
 using SecureMessaging.Server.Services;
 using System.Security.Claims;
 
@@ -8,11 +9,13 @@ namespace SecureMessaging.Server.Hubs;
 public class AuthHub : Hub
 {
     private readonly AuthService _authService;
+    private readonly DeviceService _deviceService;
     private readonly ILogger<AuthHub> _logger;
 
-    public AuthHub(AuthService authService, ILogger<AuthHub> logger)
+    public AuthHub(AuthService authService, DeviceService deviceService, ILogger<AuthHub> logger)
     {
         _authService = authService;
+        _deviceService = deviceService;
         _logger = logger;
     }
 
@@ -87,6 +90,64 @@ public class AuthHub : Hub
         {
             _logger.LogError(ex, "Error checking primary device");
             return false;
+        }
+    }
+
+    [Authorize]
+    public async Task<List<DeviceDto>> GetUserDevices()
+    {
+        var userId = GetUserId();
+        return await _deviceService.GetUserDevices(userId);
+    }
+
+    [Authorize]
+    public async Task SetPrimaryDevice(Guid deviceId)
+    {
+        var userId = GetUserId();
+        await _deviceService.SetPrimaryDevice(deviceId, userId);
+    }
+
+    [Authorize]
+    public async Task RemoveDevice(Guid deviceId)
+    {
+        var userId = GetUserId();
+        await _deviceService.RemoveDevice(deviceId, userId);
+    }
+
+    public async Task<DeviceDto> GetCurrentDevice()
+    {
+        try
+        {
+            var userId = GetUserId();
+            var httpContext = Context.GetHttpContext();
+
+            if (httpContext == null)
+            {
+                throw new HubException("Unable to access request context");
+            }
+
+            var deviceName = httpContext.Request.Headers["Device-Name"].ToString();
+
+            if (string.IsNullOrEmpty(deviceName))
+            {
+                // Fallback to finding the current device for this user
+                var devices = await _deviceService.GetUserDevices(userId);
+                var currentDevice = devices.FirstOrDefault(d => d.IsCurrent);
+
+                if (currentDevice == null)
+                {
+                    throw new HubException("No current device found for user");
+                }
+
+                return currentDevice;
+            }
+
+            return await _deviceService.GetCurrentDevice(userId, deviceName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting current device");
+            throw new HubException("Failed to get current device information. Please try again.");
         }
     }
 }

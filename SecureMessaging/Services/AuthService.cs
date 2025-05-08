@@ -11,7 +11,9 @@ namespace SecureMessaging.Services;
 public class AuthService
 {
     private readonly string _hubUrl;
-    private HubConnection _hubConnection;
+    public HubConnection _hubConnection;
+    public HubConnection HubConnection => _hubConnection;
+
     private const string AuthTokenKey = "auth_token";
 
     public AuthService(string hubUrl)
@@ -19,7 +21,7 @@ public class AuthService
         _hubUrl = hubUrl;
     }
 
-    private async Task EnsureHubConnected(bool requireAuth = false)
+    public async Task EnsureHubConnected(bool requireAuth = false)
     {
         if (_hubConnection?.State == HubConnectionState.Connected)
             return;

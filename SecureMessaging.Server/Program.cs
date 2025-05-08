@@ -5,6 +5,7 @@ using SecureMessaging.Server.Models;
 using SecureMessaging.Server.Services;
 using Supabase;
 using System.Text;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,7 +14,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", builder => builder
         .WithOrigins(
-            "https://9e76-145-14-21-133.ngrok-free.app"
+            "https://d45d-145-14-21-133.ngrok-free.app"
         )
         .AllowAnyHeader()
         .AllowAnyMethod()
@@ -23,7 +24,11 @@ builder.Services.AddCors(options =>
 
 // Add services to the container.
 builder.Services.AddControllers();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR()
+    .AddJsonProtocol(options => {
+        options.PayloadSerializerOptions.PropertyNamingPolicy = null;
+        options.PayloadSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    });
 
 // Configure Supabase
 var supabaseUrl = builder.Configuration["Supabase:Url"];

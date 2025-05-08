@@ -19,6 +19,9 @@ public partial class AppSettingsViewModel : ObservableObject
     private ObservableCollection<Device> _devices;
 
     [ObservableProperty]
+    private Device _currentDevice;
+
+    [ObservableProperty]
     private bool _isRestricted;
 
     [ObservableProperty]
@@ -39,43 +42,108 @@ public partial class AppSettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task LoadSettings()
     {
-        var userId = _authService.GetCurrentUserId();
-
-        // Load devices
-        var devices = await _deviceService.GetUserDevices(userId);
-
-        Devices.Clear();
-        foreach (var device in devices)
+        try
         {
-            Devices.Add(device);
+            var userId = _authService.GetCurrentUserId();
+            if (userId == Guid.Empty)
+            {
+                await Shell.Current.DisplayAlert("Error", "User not authenticated", "OK");
+                return;
+            }
+
+            // Load current device with retry logic
+            Device currentDevice = null;
+            int retries = 0;
+            while (retries < 3 && currentDevice == null)
+            {
+                try
+                {
+                    currentDevice = await _deviceService.GetCurrentDevice();
+                    retries++;
+                }
+                catch
+                {
+                    if (retries >= 2) throw;
+                    await Task.Delay(1000);
+                }
+            }
+
+            CurrentDevice = currentDevice ?? throw new Exception("Could not identify current device");
+
+            // Load all devices
+            var devices = await _deviceService.GetUserDevices(userId);
+
+            Devices.Clear();
+            foreach (var device in devices)
+            {
+                Devices.Add(device);
+            }
+
+            // Load user restrictions
+            var user = await _userService.GetUser(userId);
+            IsRestricted = user.IsRestricted;
+
+            // Load theme preference
+            IsDarkTheme = Application.Current.UserAppTheme == AppTheme.Dark;
         }
-
-        // Load user restrictions
-        var user = await _userService.GetUser(userId);
-        IsRestricted = user.IsRestricted;
-
-        // Load theme preference
-        IsDarkTheme = Application.Current.UserAppTheme == AppTheme.Dark;
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error loading settings: {ex}");
+            await Shell.Current.DisplayAlert("Error",
+                "Failed to load device settings. Please check your connection and try again.",
+                "OK");
+        }
     }
 
     [RelayCommand]
     private async Task RemoveDevice(Device device)
     {
-        if (device.IsCurrent)
+        try
         {
-            await Shell.Current.DisplayAlert("Error", "Cannot remove current device", "OK");
-            return;
-        }
+            if (device == null) return;
 
-        await _deviceService.RemoveDevice(device.Id);
-        Devices.Remove(device);
+            if (device.IsCurrent)
+            {
+                await Shell.Current.DisplayAlert("Error", "Cannot remove current device", "OK");
+                return;
+            }
+
+            bool confirm = await Shell.Current.DisplayAlert(
+                "Confirm",
+                $"Are you sure you want to remove {device.DeviceName}?",
+                "Yes", "No");
+
+            if (!confirm) return;
+
+            await _deviceService.RemoveDevice(device.Id);
+            Devices.Remove(device);
+
+            await Shell.Current.DisplayAlert("Success", "Device removed successfully", "OK");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error removing device: {ex}");
+            await Shell.Current.DisplayAlert("Error", "Failed to remove device", "OK");
+        }
     }
 
     [RelayCommand]
     private async Task SetPrimaryDevice(Device device)
     {
-        await _deviceService.SetPrimaryDevice(device.Id);
-        await LoadSettings();
+        try
+        {
+            if (device == null || device.IsPrimary) return;
+
+            await _deviceService.SetPrimaryDevice(device.Id);
+            await LoadSettings();
+
+            await Shell.Current.DisplayAlert("Success", "Primary device updated", "OK");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error setting primary device: {ex}");
+            await Shell.Current.DisplayAlert("Error", "Failed to set primary device", "OK");
+        }
     }
 
     [RelayCommand]
