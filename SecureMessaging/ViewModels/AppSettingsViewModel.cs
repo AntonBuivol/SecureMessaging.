@@ -130,19 +130,31 @@ public partial class AppSettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task SetPrimaryDevice(Device device)
     {
+        if (device == null || device.IsPrimary) return;
+
         try
         {
-            if (device == null || device.IsPrimary) return;
+            bool confirm = await Shell.Current.DisplayAlert(
+                "Confirm Primary Device",
+                $"Set {device.DeviceName} as your primary device?",
+                "Confirm", "Cancel");
+
+            if (!confirm) return;
 
             await _deviceService.SetPrimaryDevice(device.Id);
             await LoadSettings();
 
-            await Shell.Current.DisplayAlert("Success", "Primary device updated", "OK");
+            await Shell.Current.DisplayAlert("Success",
+                $"{device.DeviceName} is now your primary device",
+                "OK");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Error setting primary device: {ex}");
-            await Shell.Current.DisplayAlert("Error", "Failed to set primary device", "OK");
+            await Shell.Current.DisplayAlert("Error",
+                ex.Message.Contains("not found") ? ex.Message :
+                ex.Message.Contains("Network") ? ex.Message :
+                "Failed to update device settings",
+                "OK");
         }
     }
 

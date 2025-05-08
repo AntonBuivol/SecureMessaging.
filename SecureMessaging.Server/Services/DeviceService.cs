@@ -1,6 +1,8 @@
 ﻿using SecureMessaging.Server.Models;
 using Supabase;
 using Supabase.Postgrest;
+using Supabase.Postgrest.Exceptions;
+using static Supabase.Postgrest.Constants;
 
 namespace SecureMessaging.Server.Services;
 
@@ -92,28 +94,28 @@ public class DeviceService
 
     public async Task SetPrimaryDevice(Guid deviceId, Guid userId)
     {
-        // First reset all primary flags
-        var devices = await _supabase
-            .From<Device>()
-            .Where(x => x.UserId == userId && x.IsPrimary)
-            .Get();
-
-        foreach (var device in devices.Models)
+        try
         {
-            device.IsPrimary = false;
-            await _supabase.From<Device>().Update(device);
+            await _supabase.Rpc("set_primary_device",
+                new Dictionary<string, object>
+                {
+                { "p_device_id", deviceId },
+                { "p_user_id", userId }
+                });
         }
-
-        // Set new primary device
-        var primaryDevice = await _supabase
-            .From<Device>()
-            .Where(x => x.Id == deviceId && x.UserId == userId)
-            .Single();
-
-        if (primaryDevice != null)
+        catch (PostgrestException ex)
         {
-            primaryDevice.IsPrimary = true;
-            await _supabase.From<Device>().Update(primaryDevice);
+            Console.WriteLine($"Supabase error: {ex.Message}");
+            if (ex.Message.Contains("Device not found"))
+            {
+                throw new KeyNotFoundException(ex.Message);
+            }
+            throw new Exception("Database operation failed");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error setting primary device: {ex}");
+            throw;
         }
     }
 

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.SignalR;
 using SecureMessaging.Server.Models;
 using SecureMessaging.Server.Services;
+using Supabase.Postgrest.Exceptions;
 using System.Security.Claims;
 
 namespace SecureMessaging.Server.Hubs;
@@ -103,8 +104,26 @@ public class AuthHub : Hub
     [Authorize]
     public async Task SetPrimaryDevice(Guid deviceId)
     {
-        var userId = GetUserId();
-        await _deviceService.SetPrimaryDevice(deviceId, userId);
+        try
+        {
+            var userId = GetUserId();
+            await _deviceService.SetPrimaryDevice(deviceId, userId);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogError(ex, "Device authorization failed");
+            throw new HubException(ex.Message);
+        }
+        catch (PostgrestException ex)
+        {
+            _logger.LogError(ex, "Database operation failed");
+            throw new HubException("Failed to update device settings");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error setting primary device");
+            throw new HubException("An unexpected error occurred");
+        }
     }
 
     [Authorize]

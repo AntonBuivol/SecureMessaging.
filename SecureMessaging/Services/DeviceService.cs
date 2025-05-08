@@ -5,6 +5,7 @@ using Device = SecureMessaging.Models.Device;
 using static Supabase.Postgrest.Constants;
 using System.Diagnostics;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.AspNetCore.SignalR;
 
 namespace SecureMessaging.Services;
 
@@ -54,10 +55,17 @@ public class DeviceService
             await _authService.EnsureHubConnected(requireAuth: true);
             await _authService.HubConnection.InvokeAsync("SetPrimaryDevice", deviceId);
         }
+        catch (HubException ex) when (ex.Message.Contains("not found"))
+        {
+            throw new Exception("Device not found or doesn't belong to your account");
+        }
+        catch (HubException ex)
+        {
+            throw new Exception("Failed to update device settings. Please try again.");
+        }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Error setting primary device: {ex}");
-            throw;
+            throw new Exception("Network error. Please check your connection.");
         }
     }
 
